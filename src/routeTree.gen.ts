@@ -10,33 +10,206 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AdvertisersRouteImport } from './routes/advertisers'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
+import { Route as CompareRouteImport } from './routes/compare'
+import { Route as ImportRouteImport } from './routes/import'
+import { Route as ListRequestsRouteImport } from './routes/list-requests'
+import { Route as ListsRouteImport } from './routes/lists'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TrashRouteImport } from './routes/trash'
+import { Route as UsersRouteImport } from './routes/users'
+import { Route as RegionsIndexRouteImport } from './routes/regions.index'
+import { Route as RegionsRegionSlugRouteImport } from './routes/regions.$regionSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdvertisersRoute = AdvertisersRouteImport.update({
+  id: '/advertisers',
+  path: '/advertisers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportRoute = ImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListRequestsRoute = ListRequestsRouteImport.update({
+  id: '/list-requests',
+  path: '/list-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListsRoute = ListsRouteImport.update({
+  id: '/lists',
+  path: '/lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrashRoute = TrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegionsIndexRoute = RegionsIndexRouteImport.update({
+  id: '/regions/',
+  path: '/regions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegionsRegionSlugRoute = RegionsRegionSlugRouteImport.update({
+  id: '/regions/$regionSlug',
+  path: '/regions/$regionSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/advertisers': typeof AdvertisersRoute
+  '/campaigns': typeof CampaignsRoute
+  '/compare': typeof CompareRoute
+  '/import': typeof ImportRoute
+  '/list-requests': typeof ListRequestsRoute
+  '/lists': typeof ListsRoute
+  '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
+  '/trash': typeof TrashRoute
+  '/users': typeof UsersRoute
+  '/regions/$regionSlug': typeof RegionsRegionSlugRoute
+  '/regions/': typeof RegionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/advertisers': typeof AdvertisersRoute
+  '/campaigns': typeof CampaignsRoute
+  '/compare': typeof CompareRoute
+  '/import': typeof ImportRoute
+  '/list-requests': typeof ListRequestsRoute
+  '/lists': typeof ListsRoute
+  '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
+  '/trash': typeof TrashRoute
+  '/users': typeof UsersRoute
+  '/regions/$regionSlug': typeof RegionsRegionSlugRoute
+  '/regions': typeof RegionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/advertisers': typeof AdvertisersRoute
+  '/campaigns': typeof CampaignsRoute
+  '/compare': typeof CompareRoute
+  '/import': typeof ImportRoute
+  '/list-requests': typeof ListRequestsRoute
+  '/lists': typeof ListsRoute
+  '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
+  '/trash': typeof TrashRoute
+  '/users': typeof UsersRoute
+  '/regions/$regionSlug': typeof RegionsRegionSlugRoute
+  '/regions/': typeof RegionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/activity'
+    | '/advertisers'
+    | '/campaigns'
+    | '/compare'
+    | '/import'
+    | '/list-requests'
+    | '/lists'
+    | '/reports'
+    | '/settings'
+    | '/trash'
+    | '/users'
+    | '/regions/$regionSlug'
+    | '/regions/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/activity'
+    | '/advertisers'
+    | '/campaigns'
+    | '/compare'
+    | '/import'
+    | '/list-requests'
+    | '/lists'
+    | '/reports'
+    | '/settings'
+    | '/trash'
+    | '/users'
+    | '/regions/$regionSlug'
+    | '/regions'
+  id:
+    | '__root__'
+    | '/'
+    | '/activity'
+    | '/advertisers'
+    | '/campaigns'
+    | '/compare'
+    | '/import'
+    | '/list-requests'
+    | '/lists'
+    | '/reports'
+    | '/settings'
+    | '/trash'
+    | '/users'
+    | '/regions/$regionSlug'
+    | '/regions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
+  AdvertisersRoute: typeof AdvertisersRoute
+  CampaignsRoute: typeof CampaignsRoute
+  CompareRoute: typeof CompareRoute
+  ImportRoute: typeof ImportRoute
+  ListRequestsRoute: typeof ListRequestsRoute
+  ListsRoute: typeof ListsRoute
+  ReportsRoute: typeof ReportsRoute
+  SettingsRoute: typeof SettingsRoute
+  TrashRoute: typeof TrashRoute
+  UsersRoute: typeof UsersRoute
+  RegionsRegionSlugRoute: typeof RegionsRegionSlugRoute
+  RegionsIndexRoute: typeof RegionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +221,115 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/advertisers': {
+      id: '/advertisers'
+      path: '/advertisers'
+      fullPath: '/advertisers'
+      preLoaderRoute: typeof AdvertisersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import': {
+      id: '/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof ImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/list-requests': {
+      id: '/list-requests'
+      path: '/list-requests'
+      fullPath: '/list-requests'
+      preLoaderRoute: typeof ListRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lists': {
+      id: '/lists'
+      path: '/lists'
+      fullPath: '/lists'
+      preLoaderRoute: typeof ListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trash': {
+      id: '/trash'
+      path: '/trash'
+      fullPath: '/trash'
+      preLoaderRoute: typeof TrashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/regions/': {
+      id: '/regions/'
+      path: '/regions'
+      fullPath: '/regions/'
+      preLoaderRoute: typeof RegionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/regions/$regionSlug': {
+      id: '/regions/$regionSlug'
+      path: '/regions/$regionSlug'
+      fullPath: '/regions/$regionSlug'
+      preLoaderRoute: typeof RegionsRegionSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
+  AdvertisersRoute: AdvertisersRoute,
+  CampaignsRoute: CampaignsRoute,
+  CompareRoute: CompareRoute,
+  ImportRoute: ImportRoute,
+  ListRequestsRoute: ListRequestsRoute,
+  ListsRoute: ListsRoute,
+  ReportsRoute: ReportsRoute,
+  SettingsRoute: SettingsRoute,
+  TrashRoute: TrashRoute,
+  UsersRoute: UsersRoute,
+  RegionsRegionSlugRoute: RegionsRegionSlugRoute,
+  RegionsIndexRoute: RegionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

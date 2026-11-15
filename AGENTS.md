@@ -28,3 +28,10 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+<!-- AGENT-MEMORY:BEGIN -->
+- App shell (sidebar + topbar) wraps `<Outlet />` in `src/routes/__root.tsx`; move it into the managed `_authenticated` layout when auth lands so the sign-in page has no shell.
+- Sidebar items live in `src/lib/navigation.ts`, each with a `permission` key; the backend must enforce the same keys (hidden links are never the only check).
+- `src/lib/regions.ts` is a temporary seed for Phase 1 screens; regions/cities/districts must move to the database (admin-editable) and keep only photos keyed by slug in code.
+- Layout uses logical CSS (`start`/`end`, `ps`/`pe`) so RTL is correct; avoid `left`/`right` utilities.
+<!-- AGENT-MEMORY:END -->
