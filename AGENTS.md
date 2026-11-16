@@ -1,37 +1,21 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
+# إرشادات المشروع
 
-## What Lovable manages
+منصة «دليل المعلنين»: TanStack Start + React + Supabase، واجهة عربية RTL بالكامل.
+المشروع لم يعد مرتبطاً بمحرر Lovable؛ التطوير عبر GitHub و Supabase والنشر على Render.
 
-Rules outside this block are the project's own. Change the pieces below in
-Lovable, not by hand. With the [Lovable MCP](https://mcp.lovable.dev)
-connected, `send_message` asks Lovable to do it; otherwise ask the user to
-use the editor.
+## قواعد أساسية
+- التصميم ثابت: عربي، RTL، خلفية كريمية، شريط جانبي داكن، لمسات ذهبية. استخدم خصائص CSS المنطقية (`start`/`end`) وليس `left`/`right`.
+- لا تحذف أي وظيفة قائمة دون موافقة صاحبة المشروع.
+- لا ترفع أسراراً إلى GitHub (`.env` مستثنى في `.gitignore`). مفتاح `service_role` يُستعمل في الخادم فقط (`client.server.ts`) وعبر متغير بيئة في Render.
+- لا تعطّل RLS لحل مشكلة صلاحيات؛ عدّل السياسة بدلاً من ذلك.
 
-- **Database.** Do not add or edit `supabase/migrations/` or `drizzle/`.
-  Ask Lovable to change the schema.
-- **Generated files.** Do not edit a file whose header says it is automatically
-  generated.
-- **AI gateway.** Keep model calls on Lovable's gateway, and keep
-  `LOVABLE_API_KEY` out of browser code.
-- **Connectors.** Lovable provides native connectors. `list_connectors` shows
-  which are enabled; `add_connector` only returns the dashboard link. When a
-  connector is enabled, calls go through the connector gateway and need
-  `LOVABLE_API_KEY`. When Lovable does not provide one, users can bring their
-  own key and store it in Secrets.
-- **Secrets.** Lovable manages them. Do not put secret values in the repo.
-<!-- LOVABLE:END -->
+## قاعدة البيانات
+- التغييرات عبر ملفات SQL في `supabase/migrations/` (اسم الملف يبدأ بالتاريخ والوقت). مسموحة الآن، والمحرر Lovable لم يعد مستخدماً.
+- لا تُنفَّذ أوامر هدّامة (DROP / TRUNCATE / حذف بيانات) دون موافقة صريحة.
+- الصلاحيات تُفرض في RLS ودوال `has_permission(...)`؛ إخفاء الروابط في الواجهة ليس حماية.
+- أرقام الهواتف في `advertiser_phones` والملاحظات الإدارية في `advertiser_admin_notes` جدولان منفصلان بصلاحيتين مستقلتين. لا تُنسخ محتوياتهما إلى سجل التدقيق.
 
-<!-- AGENT-MEMORY:BEGIN -->
-- App shell (sidebar + topbar) wraps `<Outlet />` in `src/routes/__root.tsx`; move it into the managed `_authenticated` layout when auth lands so the sign-in page has no shell.
-- Sidebar items live in `src/lib/navigation.ts`, each with a `permission` key; the backend must enforce the same keys (hidden links are never the only check).
-- `src/lib/regions.ts` is a temporary seed for Phase 1 screens; regions/cities/districts must move to the database (admin-editable) and keep only photos keyed by slug in code.
-- Layout uses logical CSS (`start`/`end`, `ps`/`pe`) so RTL is correct; avoid `left`/`right` utilities.
-<!-- AGENT-MEMORY:END -->
+## الملفات المولّدة
+- `src/routeTree.gen.ts` يُولَّد تلقائياً عند البناء.
+- `src/integrations/supabase/types.ts` يُعاد توليده بعد كل تغيير في المخطط.
+- 
