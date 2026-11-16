@@ -1,9 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Bell, Menu, Search, UserRound } from "lucide-react";
+import { Bell, LogOut, Menu, Search, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/lib/auth";
 import { Brand } from "./Brand";
 import { SidebarNav } from "./SidebarNav";
 
@@ -35,6 +36,7 @@ function SearchForm({ className }: { className?: string }) {
 
 export function Topbar() {
   const [open, setOpen] = useState(false);
+  const { email, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur-md">
@@ -70,9 +72,18 @@ export function Topbar() {
             </span>
             <span className="hidden flex-col leading-tight sm:flex">
               <span className="text-sm font-semibold">مرحباً بك</span>
-              <span className="text-[11px] text-muted-foreground">تسجيل الدخول قريباً</span>
+              <span dir="ltr" className="max-w-[180px] truncate text-[11px] text-muted-foreground">{email}</span>
             </span>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-11 rounded-full border border-border bg-card shadow-soft"
+            aria-label="تسجيل الخروج"
+            onClick={() => void signOut()}
+          >
+            <LogOut className="size-5" />
+          </Button>
         </div>
       </div>
       <div className="px-4 pb-3 md:hidden">
