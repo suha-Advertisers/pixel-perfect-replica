@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 
+import { useAuth } from "@/lib/auth";
 import { adminNav, mainNav, type NavItem } from "@/lib/navigation";
 import { Brand } from "./Brand";
 
@@ -21,6 +22,9 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: (() => void
 }
 
 export function SidebarNav({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+  const { can } = useAuth();
+  const visibleMain = mainNav.filter((item) => can(item.permission));
+  const visibleAdmin = adminNav.filter((item) => can(item.permission));
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="px-5 pb-6 pt-6">
@@ -29,19 +33,21 @@ export function SidebarNav({ onNavigate }: { onNavigate?: (() => void) | undefin
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6" aria-label="القائمة الرئيسية">
         <div className="space-y-1">
-          {mainNav.map((item) => (
+          {visibleMain.map((item) => (
             <NavLink key={item.to} item={item} onNavigate={onNavigate} />
           ))}
         </div>
 
-        <div className="space-y-1">
-          <p className="px-3.5 pb-1 text-xs font-medium tracking-wide text-sidebar-muted">
-            الإدارة
-          </p>
-          {adminNav.map((item) => (
-            <NavLink key={item.to} item={item} onNavigate={onNavigate} />
-          ))}
-        </div>
+        {visibleAdmin.length > 0 && (
+          <div className="space-y-1">
+            <p className="px-3.5 pb-1 text-xs font-medium tracking-wide text-sidebar-muted">
+              الإدارة
+            </p>
+            {visibleAdmin.map((item) => (
+              <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+            ))}
+          </div>
+        )}
       </nav>
 
       <div className="m-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/60 p-4">
