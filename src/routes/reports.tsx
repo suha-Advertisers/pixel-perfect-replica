@@ -1,38 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BarChart3 } from "lucide-react";
-
+import { useEffect, useState } from "react";
+import { BarChart3, Download } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/reports")({
-  head: () => ({
-    meta: [
-      { title: "التقارير والإحصائيات — دليل المعلنين" },
-      { name: "description", content: "أرقام حقيقية من قاعدة البيانات عن المعلنين والحملات." },
-      { property: "og:title", content: "التقارير والإحصائيات — دليل المعلنين" },
-      { property: "og:description", content: "أرقام حقيقية من قاعدة البيانات عن المعلنين والحملات." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: ReportsPage,
-});
-
-function ReportsPage() {
-  return (
-    <div>
-      <PageHeader title="التقارير والإحصائيات" description="أرقام حقيقية من قاعدة البيانات عن المعلنين والحملات." icon={BarChart3} />
-      <SectionPreview
-        phase={8}
-        features={[
-        "المعلنون حسب المنطقة والمدينة والفئة والجنس",
-        "توزيع المتابعين والأسعار",
-        "إحصائيات الحملات",
-        "سجل الإعلانات لكل متجر أو عميل",
-        "الأكثر اختياراً وأحدث المضافين",
-        "تصدير التقارير",
-        ]}
-      />
-    </div>
-  );
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+export const Route = createFileRoute("/reports")({ component: ReportsPage });
+function ReportsPage(){
+ const [rows,setRows]=useState<any[]>([]); const [busy,setBusy]=useState(true); const [error,setError]=useState("");
+ useEffect(()=>{let live=true; (async()=>{const {data,error}=await (supabase as any).from("advertisers").select("region_slug,city,category,platform,followers,price_attendance,price_home,price_hospitality,deleted_at").is("deleted_at",null).limit(5000); if(!live)return; if(error)setError(error.message); else setRows(data??[]); setBusy(false)})();return()=>{live=false}},[]);
+ const count=(key:string)=>Object.entries(rows.reduce((a,r)=>{const k=r[key]||"غير محدد";a[k]=(a[k]||0)+1;return a},{} as Record<string,number>)).sort((a:any,b:any)=>b[1]-a[1]);
+ function exportCsv(){const csv=["region,city,category,platform,followers,price_attendance,price_home,price_hospitality",...rows.map(r=>[r.region_slug,r.city,r.category,r.platform,r.followers,r.price_attendance,r.price_home,r.price_hospitality].map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download="advertisers-report.csv";a.click()}
+ return <div className="space-y-6"><PageHeader title="التقارير والإحصائيات" description="إحصائيات مباشرة من قاعدة بيانات المعلنين." icon={BarChart3}/><div className="flex justify-end"><Button variant="outline" onClick={exportCsv}><Download className="ms-2 size-4"/>تصدير التقرير</Button></div>{error&&<p className="text-sm text-destructive">{error}</p>}<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[{t:"إجمالي المعلنين",v:busy?"…":rows.length},{t:"متوسط المتابعين",v:busy?"…":Math.round(rows.reduce((s,r)=>s+(r.followers||0),0)/Math.max(rows.length,1)).toLocaleString("ar-SA")},{t:"لديهم سعر حضور",v:busy?"…":rows.filter(r=>r.price_attendance!=null).length},{t:"لديهم سعر منزلي",v:busy?"…":rows.filter(r=>r.price_home!=null).length}].map(x=><div key={x.t} className="rounded-2xl border bg-card p-5"><p className="text-sm text-muted-foreground">{x.t}</p><p className="mt-2 text-3xl font-extrabold">{x.v}</p></div>)}</div><div className="grid gap-4 lg:grid-cols-2">{[{title:"حسب المنطقة",data:count("region_slug")},{title:"حسب المدينة",data:count("city")},{title:"حسب الفئة",data:count("category")},{title:"حسب المنصة",data:count("platform")}].map(g=><section key={g.title} className="rounded-2xl border bg-card p-5"><h2 className="mb-4 font-bold">{g.title}</h2>{busy?"جارٍ التحميل…":g.data.length===0?<p className="text-sm text-muted-foreground">لا توجد بيانات.</p>:g.data.slice(0,12).map(([k,v]:any)=><div key={k} className="mb-3"><div className="mb-1 flex justify-between text-sm"><span>{k}</span><b>{v}</b></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{width:`${Math.max(3,v/rows.length*100)}%`}}/></div></div>)}</section>)}</div></div>
 }

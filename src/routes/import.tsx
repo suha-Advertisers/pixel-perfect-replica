@@ -1,38 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FileSpreadsheet } from "lucide-react";
-
+import { useState } from "react";
+import { FileSpreadsheet, Upload, Download } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/import")({
-  head: () => ({
-    meta: [
-      { title: "استيراد Excel — دليل المعلنين" },
-      { name: "description", content: "استيراد المعلنين من ملفات XLSX وXLS وCSV مع كشف التكرار." },
-      { property: "og:title", content: "استيراد Excel — دليل المعلنين" },
-      { property: "og:description", content: "استيراد المعلنين من ملفات XLSX وXLS وCSV مع كشف التكرار." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: ImportPage,
-});
-
-function ImportPage() {
-  return (
-    <div>
-      <PageHeader title="استيراد Excel" description="استيراد المعلنين من ملفات XLSX وXLS وCSV مع كشف التكرار." icon={FileSpreadsheet} />
-      <SectionPreview
-        phase={5}
-        features={[
-        "رفع الملف ومعاينة البيانات",
-        "مطابقة الأعمدة والتحقق من الحقول",
-        "كشف التكرار بروابط حسابات التواصل بعد توحيدها",
-        "عرض الحقول المتعارضة وتحديث المعلن الموجود",
-        "حفظ أرقام الجوال كنص للحفاظ على الصفر",
-        "تقرير: المضاف، المحدّث، المكرر، الفاشل",
-        ]}
-      />
-    </div>
-  );
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+export const Route=createFileRoute("/import")({component:ImportPage});
+function ImportPage(){const {can}=useAuth();const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");const [preview,setPreview]=useState<Record<string,string>[]>([]);
+ async function read(f:File){setFile(f);const text=await f.text();const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(Boolean);const headers=lines[0].split(/[;,\t]/).map(x=>x.trim());const data=lines.slice(1).map(line=>Object.fromEntries(line.split(/[;,\t]/).map((v,i)=>[headers[i],v.trim()])));setPreview(data.slice(0,8));}
+ async function importRows(){if(!file||!can("advertisers.import"))return;setBusy(true);setMessage("");try{const text=await file.text();const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(Boolean);const headers=lines[0].split(/[;,\t]/).map(x=>x.trim().toLowerCase());const map:Record<string,string>={"الاسم":"full_name","الاسم الكامل":"full_name","full_name":"full_name","اسم المستخدم":"username","username":"username","المدينة":"city","city":"city","المنطقة":"region_slug","region_slug":"region_slug","الفئة":"category","category":"category","المنصة":"platform","platform":"platform","المتابعون":"followers","followers":"followers","رابط الحساب":"profile_url","profile_url":"profile_url"};const payload=lines.slice(1).map(line=>{const vals=line.split(/[;,\t]/);const obj:any={};headers.forEach((h,i)=>{const key=map[h];if(key&&vals[i]?.trim())obj[key]=key==="followers"?Number(vals[i]):vals[i].trim()});return obj}).filter(x=>x.full_name);const {data:existing}=await (supabase as any).from("advertisers").select("full_name,username").is("deleted_at",null);const keys=new Set((existing??[]).map((x:any)=>(x.username||x.full_name).toLowerCase()));const fresh=payload.filter(x=>!keys.has((x.username||x.full_name).toLowerCase()));if(!fresh.length){setMessage(`لم تتم إضافة سجلات. ${payload.length} سجل مكرر أو غير صالح.`)}else{const {error}=await (supabase as any).from("advertisers").insert(fresh);setMessage(error?`تعذر الاستيراد: ${error.message}`:`تم استيراد ${fresh.length} معلن، وتجاوز ${payload.length-fresh.length} سجل مكرر.`)}}catch(e){setMessage(e instanceof Error?e.message:"تعذر قراءة الملف")}setBusy(false)}
+ return <div className="space-y-6"><PageHeader title="استيراد المعلنين" description="استيراد ملف CSV مع التحقق من الاسم وكشف التكرار." icon={FileSpreadsheet}/><section className="rounded-2xl border bg-card p-6"><label className="flex min-h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/30 p-6 text-center"><Upload className="size-8 text-primary"/><b>اختر ملف CSV</b><span className="text-sm text-muted-foreground">الأعمدة المدعومة: الاسم الكامل، اسم المستخدم، المنطقة، المدينة، الفئة، المنصة، المتابعون، رابط الحساب</span><input type="file" accept=".csv,.txt" className="sr-only" onChange={e=>e.target.files?.[0]&&void read(e.target.files[0])}/></label>{file&&<p className="mt-3 text-sm">الملف: {file.name}</p>}{preview.length>0&&<div className="mt-5 overflow-x-auto"><h2 className="mb-2 font-bold">معاينة أول 8 سجلات</h2><pre className="max-h-52 overflow-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(preview,null,2)}</pre></div>}{message&&<p className="mt-4 rounded-lg bg-muted p-3 text-sm">{message}</p>}<div className="mt-5 flex flex-wrap gap-2"><Button variant="gold" disabled={!file||busy||!can("advertisers.import")} onClick={()=>void importRows()}>{busy?"جارٍ الاستيراد…":"استيراد البيانات"}</Button><Button variant="outline" onClick={()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["full_name,username,region_slug,city,category,platform,followers,profile_url\n"],{type:"text/csv"}));a.download="advertisers-template.csv";a.click()}}><Download className="ms-2 size-4"/>قالب CSV</Button></div></section></div>
 }

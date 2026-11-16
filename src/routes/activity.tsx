@@ -1,38 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { History } from "lucide-react";
-
-import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/activity")({
-  head: () => ({
-    meta: [
-      { title: "سجل النشاطات — دليل المعلنين" },
-      { name: "description", content: "سجل آمن لكل الإجراءات الحساسة لا يمكن تعديله." },
-      { property: "og:title", content: "سجل النشاطات — دليل المعلنين" },
-      { property: "og:description", content: "سجل آمن لكل الإجراءات الحساسة لا يمكن تعديله." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: ActivityPage,
-});
-
-function ActivityPage() {
-  return (
-    <div>
-      <PageHeader title="سجل النشاطات" description="سجل آمن لكل الإجراءات الحساسة لا يمكن تعديله." icon={History} />
-      <SectionPreview
-        phase={9}
-        features={[
-        "تسجيل الدخول والمحاولات الفاشلة",
-        "إضافة وتعديل وحذف المعلنين وتغيير الأسعار",
-        "عمليات الاستيراد والتصدير",
-        "إنشاء وإرسال القوائم والحملات",
-        "تغيير الصلاحيات وإدارة الأجهزة",
-        "محاولات الوصول المرفوضة",
-        ]}
-      />
-    </div>
-  );
-}
+import { DataWorkspace } from "@/components/common/DataWorkspace";
+export const Route = createFileRoute("/activity")({ component: Page });
+function Page() { return <DataWorkspace title='سجل النشاطات' description='مراجعة سجل العمليات المسجلة في النظام.' icon={History} table='audit_logs' fields={[]} columns={[{ key: 'action', label: 'الإجراء' }, { key: 'table_name', label: 'الجدول' }, { key: 'record_id', label: 'معرف السجل' }, { key: 'actor_id', label: 'المستخدم' }, { key: 'created_at', label: 'تاريخ الإنشاء' }]} permission='audit.view' canCreate={false} canEdit={false} softDelete={false} filters={['action', 'table_name']} />; }

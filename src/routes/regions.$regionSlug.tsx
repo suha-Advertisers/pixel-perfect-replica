@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { findRegion } from "@/lib/regions";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 type RegionSearch = { city?: string | undefined };
 
@@ -60,6 +62,8 @@ function RegionPage() {
   const { regionSlug } = Route.useParams();
   const { city } = Route.useSearch();
   const region = findRegion(regionSlug)!;
+  const [advertisers, setAdvertisers] = useState<any[]>([]);
+  useEffect(() => { let active=true; (async()=>{let q=(supabase as any).from("advertisers").select("id,full_name,username,city,category,platform,followers,profile_url").eq("region_slug",regionSlug).is("deleted_at",null).limit(100);if(city)q=q.eq("city",city);const {data}=await q;if(active)setAdvertisers(data??[])})();return()=>{active=false}},[regionSlug,city]);
 
   return (
     <div className="space-y-8">
@@ -144,11 +148,7 @@ function RegionPage() {
 
       <section>
         <SectionTitle title={city ? `المعلنون في ${city}` : `المعلنون في ${region.name}`} icon={Users} />
-        <EmptyState
-          icon={Users}
-          title="لا يوجد معلنون في هذا الموقع بعد"
-          description="ستظهر بطاقات المعلنين هنا بعد ربط قاعدة البيانات في المراحل القادمة."
-        />
+        {advertisers.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{advertisers.map(a=><article key={a.id} className="rounded-xl border bg-card p-4"><b>{a.full_name}</b><p className="mt-1 text-xs text-muted-foreground">{[a.username,a.category,a.platform].filter(Boolean).join(" · ")}</p><p className="mt-2 text-sm">{a.followers?Number(a.followers).toLocaleString("ar-SA")+" متابع":"المتابعون غير محددين"}</p>{a.profile_url&&<a href={a.profile_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-primary underline">رابط الحساب</a>}</article>)}</div> : <EmptyState icon={Users} title="لا يوجد معلنون في هذا الموقع" description="يمكنك إضافة معلنين من صفحة جميع المعلنين." />}
       </section>
     </div>
   );

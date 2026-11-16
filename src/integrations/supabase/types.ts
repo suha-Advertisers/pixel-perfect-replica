@@ -71,6 +71,18 @@ export type Database = {
           full_name: string
           id: string
           platform: string | null
+          profile_url: string | null
+          neighborhood: string | null
+          gender: string | null
+          price_attendance: number | null
+          price_home: number | null
+          price_hospitality: number | null
+          price_free: boolean
+          instagram_url: string | null
+          snapchat_url: string | null
+          tiktok_url: string | null
+          youtube_url: string | null
+          x_url: string | null
           region_slug: string | null
           updated_at: string
           username: string | null
@@ -85,6 +97,18 @@ export type Database = {
           full_name: string
           id?: string
           platform?: string | null
+          profile_url?: string | null
+          neighborhood?: string | null
+          gender?: string | null
+          price_attendance?: number | null
+          price_home?: number | null
+          price_hospitality?: number | null
+          price_free?: boolean
+          instagram_url?: string | null
+          snapchat_url?: string | null
+          tiktok_url?: string | null
+          youtube_url?: string | null
+          x_url?: string | null
           region_slug?: string | null
           updated_at?: string
           username?: string | null
@@ -99,6 +123,18 @@ export type Database = {
           full_name?: string
           id?: string
           platform?: string | null
+          profile_url?: string | null
+          neighborhood?: string | null
+          gender?: string | null
+          price_attendance?: number | null
+          price_home?: number | null
+          price_hospitality?: number | null
+          price_free?: boolean
+          instagram_url?: string | null
+          snapchat_url?: string | null
+          tiktok_url?: string | null
+          youtube_url?: string | null
+          x_url?: string | null
           region_slug?: string | null
           updated_at?: string
           username?: string | null

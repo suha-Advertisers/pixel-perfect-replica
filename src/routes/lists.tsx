@@ -1,38 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ListChecks } from "lucide-react";
-
+import { useEffect, useMemo, useState } from "react";
+import { ListChecks, Plus, Trash2, Send } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/lists")({
-  head: () => ({
-    meta: [
-      { title: "قوائمي — دليل المعلنين" },
-      { name: "description", content: "أنشئ قوائم المعلنين لحملاتك وأرسلها للإدارة للمراجعة." },
-      { property: "og:title", content: "قوائمي — دليل المعلنين" },
-      { property: "og:description", content: "أنشئ قوائم المعلنين لحملاتك وأرسلها للإدارة للمراجعة." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: ListsPage,
-});
-
-function ListsPage() {
-  return (
-    <div>
-      <PageHeader title="قوائمي" description="أنشئ قوائم المعلنين لحملاتك وأرسلها للإدارة للمراجعة." icon={ListChecks} />
-      <SectionPreview
-        phase={6}
-        features={[
-        "إنشاء قوائم متعددة بأسماء مثل: حملة اليوم الوطني، حملة رمضان",
-        "إضافة وإزالة المعلنين من مناطق ومدن مختلفة",
-        "ملخص فوري: مجموع أسعار الحضور ومجموع أسعار المنزل كلٌّ على حدة",
-        "عدّ حالات الضيافة والمجاني وغير المحدد دون إدخالها في المبالغ",
-        "إعادة تسمية القائمة وحذفها",
-        "إرسال القائمة إلى الإدارة",
-        ]}
-      />
-    </div>
-  );
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+export const Route=createFileRoute("/lists")({component:ListsPage});
+const db=supabase as any;
+function ListsPage(){
+ const {session,can}=useAuth();const [lists,setLists]=useState<any[]>([]);const [advertisers,setAdvertisers]=useState<any[]>([]);const [items,setItems]=useState<any[]>([]);const [selected,setSelected]=useState("");const [name,setName]=useState("");const [advertiser,setAdvertiser]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState("");
+ async function load(){const [l,a]=await Promise.all([db.from("personal_lists").select("*").order("created_at",{ascending:false}),db.from("advertisers").select("id,full_name,username,city,price_attendance,price_home,price_hospitality,price_free").is("deleted_at",null).order("full_name").limit(1000)]);if(l.error)setError(l.error.message);else{setLists(l.data??[]);if(!selected&&l.data?.[0])setSelected(l.data[0].id)}if(!a.error)setAdvertisers(a.data??[])}
+ async function loadItems(id:string){if(!id){setItems([]);return}const {data,error}=await db.from("personal_list_items").select("id,advertiser_id,advertisers(id,full_name,username,city,price_attendance,price_home,price_hospitality,price_free)").eq("list_id",id);if(error)setError(error.message);else setItems(data??[])}
+ useEffect(()=>{void load()},[]);useEffect(()=>{void loadItems(selected)},[selected]);
+ async function create(){if(!name.trim()||!session?.user.id)return;setBusy(true);const {data,error}=await db.from("personal_lists").insert({name:name.trim(),owner_id:session.user.id}).select().single();setBusy(false);if(error)setError(error.message);else{setName("");await load();setSelected(data.id)}}
+ async function add(){if(!selected||!advertiser)return;setBusy(true);const {error}=await db.from("personal_list_items").insert({list_id:selected,advertiser_id:advertiser});setBusy(false);if(error)setError(error.message);else{setAdvertiser("");await loadItems(selected)}}
+ async function remove(id:string){const {error}=await db.from("personal_list_items").delete().eq("id",id);if(error)setError(error.message);else await loadItems(selected)}
+ async function submit(){if(!selected||!session?.user.id)return;setBusy(true);const {error}=await db.from("personal_lists").update({status:"submitted"}).eq("id",selected);if(!error){await db.from("list_requests").insert({list_id:selected,submitted_by:session.user.id});await load()}else setError(error.message);setBusy(false)}
+ const sums=useMemo(()=>items.reduce((s,x)=>({attendance:s.attendance+(Number(x.advertisers?.price_attendance)||0),home:s.home+(Number(x.advertisers?.price_home)||0),hospitality:s.hospitality+(Number(x.advertisers?.price_hospitality)||0),free:s.free+(x.advertisers?.price_free?1:0)}),{attendance:0,home:0,hospitality:0,free:0}),[items]);const current=lists.find(x=>x.id===selected);
+ return <div className="space-y-6"><PageHeader title="قوائمي" description="كوّن قوائم المعلنين واحسب تقديرات الأسعار ثم أرسلها للمراجعة." icon={ListChecks}/>{error&&<p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}<div className="grid gap-5 lg:grid-cols-[300px_1fr]"><aside className="space-y-3 rounded-2xl border bg-card p-4"><h2 className="font-bold">قوائمك</h2><div className="flex gap-2"><Input placeholder="اسم القائمة الجديدة" value={name} onChange={e=>setName(e.target.value)}/><Button size="icon" variant="gold" onClick={()=>void create()} disabled={!can("lists.own")||busy||!name.trim()}><Plus className="size-4"/></Button></div>{lists.map(l=><button key={l.id} onClick={()=>setSelected(l.id)} className={`w-full rounded-xl p-3 text-start ${selected===l.id?"bg-primary/10 ring-1 ring-primary":"bg-muted/50"}`}><b>{l.name}</b><span className="mt-1 block text-xs text-muted-foreground">{l.status}</span></button>)}</aside><section className="space-y-4 rounded-2xl border bg-card p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-bold">{current?.name??"اختر قائمة"}</h2><p className="text-sm text-muted-foreground">{items.length} معلن في القائمة</p></div>{current?.status==="draft"&&<Button variant="gold" onClick={()=>void submit()} disabled={busy||items.length===0}><Send className="ms-2 size-4"/>إرسال للمراجعة</Button>}</div>{current?.status==="draft"&&<div className="flex flex-col gap-2 sm:flex-row"><select className="h-10 flex-1 rounded-md border bg-background px-3" value={advertiser} onChange={e=>setAdvertiser(e.target.value)}><option value="">اختر معلناً لإضافته</option>{advertisers.map(a=><option key={a.id} value={a.id}>{a.full_name} — {a.city||"مدينة غير محددة"}</option>)}</select><Button onClick={()=>void add()} disabled={!advertiser||busy}><Plus className="ms-2 size-4"/>إضافة</Button></div>}<div className="grid grid-cols-2 gap-2 xl:grid-cols-4">{[{t:"إجمالي الحضور",v:sums.attendance},{t:"إجمالي المنزل",v:sums.home},{t:"إجمالي الضيافة",v:sums.hospitality},{t:"حسابات مجانية",v:sums.free}].map(x=><div key={x.t} className="rounded-xl bg-muted/60 p-3"><p className="text-xs text-muted-foreground">{x.t}</p><b className="mt-1 block text-xl">{x.v.toLocaleString("ar-SA")}</b></div>)}</div><div className="space-y-2">{items.map(x=><div key={x.id} className="flex items-center justify-between gap-3 rounded-xl border p-3"><div><b>{x.advertisers?.full_name}</b><p className="text-xs text-muted-foreground">{[x.advertisers?.username,x.advertisers?.city].filter(Boolean).join(" · ")}</p></div>{current?.status==="draft"&&<Button size="icon" variant="ghost" onClick={()=>void remove(x.id)}><Trash2 className="size-4 text-destructive"/></Button>}</div>)}{current&&items.length===0&&<p className="py-8 text-center text-sm text-muted-foreground">لم تضف معلنين إلى هذه القائمة بعد.</p>}</div></section></div></div>
 }

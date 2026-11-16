@@ -1,12 +1,12 @@
-# دليل المعلنين — Roadmap
+# دليل المعلنين — حالة التنفيذ
 
-- [x] Phase 1: RTL layout, design system, sidebar navigation, home dashboard, region cards (no map), region → city pages
-- [ ] Phase 2: Lovable Cloud, database schema, sign-in (invite-only), roles & permissions, RLS — waiting on user go-ahead
-- [ ] Phase 3: Regions/cities/districts in DB, advertiser database, profiles, search & filters
-- [ ] Phase 4: Admin dashboard, user management, custom roles, trusted devices
-- [ ] Phase 5: Excel import, validation, duplicate detection
-- [ ] Phase 6: Personal lists, live selection summary, submissions to admin
-- [ ] Phase 7: Campaigns, store-scoped history stars, comparison
-- [ ] Phase 8: Arabic RTL Excel exports, reports
-- [ ] Phase 9: Audit log, recycle bin, backups, security hardening
-- [ ] Phase 10: Full testing incl. direct-API security tests, production prep
+- [x] Phase 1: RTL layout, design system, sidebar navigation, dashboard, region cards (no map), region → city pages.
+- [x] Advertiser workspace: CRUD, search, CSV export, soft-delete/restore, social links and pricing fields.
+- [x] Lists: personal lists, advertiser selection, price totals, submission for review.
+- [x] Campaign workspace: create/update/delete, status, dates, budget, branch link.
+- [x] Reports, CSV import, users, roles and permission matrix, branch membership, activity log and trash views.
+- [x] Supabase migration: supporting tables, branch-aware RLS, sensitive phone/admin-note tables, advertiser audit trigger, permission escalation safeguards.
+- [ ] Secure invitation Edge Function and email delivery.
+- [ ] XLSX/XLS import/export and robust quoted-CSV parser.
+- [ ] Campaign advertiser history UI, store-specific cooperation history, full campaign export.
+- [ ] Complete browser/API security tests and production verification.

@@ -1,37 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Settings } from "lucide-react";
-
-import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/settings")({
-  head: () => ({
-    meta: [
-      { title: "الإعدادات — دليل المعلنين" },
-      { name: "description", content: "إدارة المناطق والمدن والأحياء والفئات وإعدادات الأمان." },
-      { property: "og:title", content: "الإعدادات — دليل المعلنين" },
-      { property: "og:description", content: "إدارة المناطق والمدن والأحياء والفئات وإعدادات الأمان." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: SettingsPage,
-});
-
-function SettingsPage() {
-  return (
-    <div>
-      <PageHeader title="الإعدادات" description="إدارة المناطق والمدن والأحياء والفئات وإعدادات الأمان." icon={Settings} />
-      <SectionPreview
-        phase={4}
-        features={[
-        "إضافة وتعديل المناطق والمدن والأحياء",
-        "فئات المحتوى ومنصات التواصل",
-        "مدة صلاحية الجلسات والأجهزة الموثوقة",
-        "حالة النسخ الاحتياطي وطريقة الاستعادة",
-        "إعدادات المتاجر والعملاء",
-        ]}
-      />
-    </div>
-  );
-}
+import { useState } from "react";
+import { MapPinned, Store, Map } from "lucide-react";
+import { DataWorkspace } from "@/components/common/DataWorkspace";
+export const Route=createFileRoute("/settings")({component:SettingsPage});
+function SettingsPage(){const [tab,setTab]=useState("branches");const tabs=[{id:"branches",label:"الفروع",icon:Store},{id:"regions",label:"المناطق",icon:Map},{id:"cities",label:"المدن",icon:MapPinned}];return <div className="space-y-6"><div><h1 className="text-2xl font-extrabold">الإعدادات</h1><p className="mt-1 text-sm text-muted-foreground">إدارة الفروع والمناطق والمدن.</p></div><div className="flex flex-wrap gap-2">{tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} className={`rounded-lg px-4 py-2 text-sm ${tab===t.id?"bg-primary text-primary-foreground":"bg-muted"}`}><t.icon className="ms-2 inline size-4"/>{t.label}</button>)}</div>{tab==="branches"?<DataWorkspace title="الفروع" description="إضافة وتعديل فروع المنشأة." icon={Store} table="branches" fields={[{key:"name",label:"اسم الفرع",required:true},{key:"city",label:"المدينة"},{key:"address",label:"العنوان",type:"textarea"},{key:"is_active",label:"نشط",type:"boolean"}]} columns={[{key:"name",label:"اسم الفرع"},{key:"city",label:"المدينة"},{key:"address",label:"العنوان"},{key:"is_active",label:"نشط",format:v=>v?"نعم":"لا"}]} permission="settings.manage"/>:tab==="regions"?<DataWorkspace title="المناطق" description="المناطق الإدارية الثلاث عشرة." icon={Map} table="regions" primaryKey="slug" fields={[{key:"slug",label:"رمز المنطقة",required:true},{key:"name_ar",label:"اسم المنطقة",required:true},{key:"is_active",label:"نشطة",type:"boolean"}]} columns={[{key:"name_ar",label:"المنطقة"},{key:"slug",label:"الرمز"},{key:"is_active",label:"نشطة",format:v=>v?"نعم":"لا"}]} permission="settings.manage"/>:<DataWorkspace title="المدن" description="ربط المدن بالمناطق الإدارية." icon={MapPinned} table="cities" fields={[{key:"region_slug",label:"رمز المنطقة (slug)",required:true},{key:"name_ar",label:"اسم المدينة",required:true},{key:"is_active",label:"نشطة",type:"boolean"}]} columns={[{key:"name_ar",label:"المدينة"},{key:"region_slug",label:"المنطقة"},{key:"is_active",label:"نشطة",format:v=>v?"نعم":"لا"}]} permission="settings.manage"/>}</div>}

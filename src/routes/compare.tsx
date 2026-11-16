@@ -1,38 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect,useState } from "react";
 import { Scale } from "lucide-react";
-
 import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/compare")({
-  head: () => ({
-    meta: [
-      { title: "المقارنة بين المعلنين — دليل المعلنين" },
-      { name: "description", content: "قارن بين عدة معلنين لاختيار الأنسب لحملتك." },
-      { property: "og:title", content: "المقارنة بين المعلنين — دليل المعلنين" },
-      { property: "og:description", content: "قارن بين عدة معلنين لاختيار الأنسب لحملتك." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: ComparePage,
-});
-
-function ComparePage() {
-  return (
-    <div>
-      <PageHeader title="المقارنة بين المعلنين" description="قارن بين عدة معلنين لاختيار الأنسب لحملتك." icon={Scale} />
-      <SectionPreview
-        phase={7}
-        features={[
-        "اختيار عدة معلنين للمقارنة",
-        "المنطقة والمدينة وفئة المحتوى",
-        "المتابعون لكل منصة وإجمالي المتابعين",
-        "سعر الحضور وسعر المنزل",
-        "إبراز الفروقات المهمة",
-        "جدول واضح ومناسب للجوال",
-        ]}
-      />
-    </div>
-  );
-}
+import { supabase } from "@/integrations/supabase/client";
+export const Route=createFileRoute("/compare")({component:ComparePage});
+function ComparePage(){const [rows,setRows]=useState<any[]>([]);const [selected,setSelected]=useState<string[]>([]);const [query,setQuery]=useState("");useEffect(()=>{void (async()=>{const {data}=await (supabase as any).from("advertisers").select("id,full_name,username,region_slug,city,category,platform,followers,price_attendance,price_home,price_hospitality,profile_url").is("deleted_at",null).limit(500);setRows(data??[])})()},[]);const toggle=(id:string)=>setSelected(p=>p.includes(id)?p.filter(x=>x!==id):p.length<4?[...p,id]:p);const chosen=rows.filter(r=>selected.includes(r.id));const filtered=rows.filter(r=>`${r.full_name} ${r.username??""} ${r.city??""}`.toLowerCase().includes(query.toLowerCase()));return <div className="space-y-6"><PageHeader title="المقارنة بين المعلنين" description="اختر حتى أربعة معلنين لمقارنة المواقع والمتابعين والأسعار." icon={Scale}/><input className="h-10 w-full rounded-lg border bg-card px-3" placeholder="ابحث عن معلن…" value={query} onChange={e=>setQuery(e.target.value)}/><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{filtered.map(r=><label key={r.id} className="flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-3"><input type="checkbox" checked={selected.includes(r.id)} onChange={()=>toggle(r.id)} disabled={!selected.includes(r.id)&&selected.length>=4}/><span><b>{r.full_name}</b><small className="block text-muted-foreground">{r.city||"مدينة غير محددة"} · {r.platform||"منصة غير محددة"}</small></span></label>)}</div>{chosen.length>0&&<div className="overflow-x-auto rounded-2xl border bg-card"><table className="w-full min-w-[600px] text-sm"><thead><tr><th className="p-3 text-start">المعيار</th>{chosen.map(r=><th key={r.id} className="p-3 text-start">{r.full_name}</th>)}</tr></thead><tbody>{[["المنطقة","region_slug"],["المدينة","city"],["الفئة","category"],["المنصة","platform"],["المتابعون","followers"],["سعر الحضور","price_attendance"],["سعر المنزل","price_home"],["سعر الضيافة","price_hospitality"],["رابط الحساب","profile_url"]].map(([label,key])=><tr key={key} className="border-t"><th className="p-3 text-start">{label}</th>{chosen.map(r=><td key={r.id} className="p-3">{key==="profile_url"&&r[key]?<a className="text-primary underline" href={r[key]} target="_blank" rel="noreferrer">فتح الحساب</a>:r[key]??"—"}</td>)}</tr>)}</tbody></table></div>}</div>}

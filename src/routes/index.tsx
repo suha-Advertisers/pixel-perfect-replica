@@ -18,6 +18,8 @@ import { StatCard } from "@/components/common/StatCard";
 import { RegionCard } from "@/components/regions/RegionCard";
 import { Button } from "@/components/ui/button";
 import { regions } from "@/lib/regions";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,6 +36,16 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
+  const [stats, setStats] = useState({ advertisers: 0, campaigns: 0, latest: [] as any[] });
+  const [statsReady, setStatsReady] = useState(false);
+  useEffect(() => { let active = true; (async () => {
+    const [a,c,l] = await Promise.all([
+      (supabase as any).from("advertisers").select("id", {count:"exact",head:true}).is("deleted_at",null),
+      (supabase as any).from("campaigns").select("id", {count:"exact",head:true}),
+      (supabase as any).from("advertisers").select("id,full_name,username,city,platform,followers").is("deleted_at",null).order("created_at",{ascending:false}).limit(5)
+    ]);
+    if(active){setStats({advertisers:a.count??0,campaigns:c.error?0:c.count??0,latest:l.data??[]});setStatsReady(true)}
+  })(); return ()=>{active=false}; }, []);
   return (
     <div className="space-y-10">
       {/* Hero */}
@@ -98,9 +110,9 @@ function HomePage() {
             <Link to="/lists">إنشاء قائمة جديدة</Link>
           </Button>
         </div>
-        <StatCard label="إجمالي المعلنين" value={null} icon={Users} tone="ink" />
+        <StatCard label="إجمالي المعلنين" value={statsReady ? stats.advertisers : null} icon={Users} tone="ink" />
         <StatCard label="مناطق رئيسية" value={regions.length} icon={LayoutGrid} tone="sage" />
-        <StatCard label="حملة إعلانية" value={null} icon={Megaphone} tone="gold" />
+        <StatCard label="حملة إعلانية" value={statsReady ? stats.campaigns : null} icon={Megaphone} tone="gold" />
         <StatCard label="معلن جديد هذا الشهر" value={null} icon={TrendingUp} tone="gold" prefix="+" />
       </section>
 
@@ -116,11 +128,7 @@ function HomePage() {
             </Link>
           }
         />
-        <EmptyState
-          icon={Users}
-          title="لا يوجد معلنون بعد"
-          description="ستظهر هنا أحدث بطاقات المعلنين بعد ربط قاعدة البيانات وإضافة المعلنين أو استيرادهم من ملف Excel."
-        />
+        {stats.latest.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{stats.latest.map((a:any)=><Link key={a.id} to="/advertisers" className="rounded-2xl border border-border bg-card p-4 shadow-soft hover:border-primary"><b>{a.full_name}</b><p className="mt-1 text-xs text-muted-foreground">{[a.username,a.city,a.platform].filter(Boolean).join(" · ")}</p><p className="mt-2 text-sm">{a.followers ? `${Number(a.followers).toLocaleString("ar-SA")} متابع` : "عدد المتابعين غير محدد"}</p></Link>)}</div> : <EmptyState icon={Users} title="لا يوجد معلنون بعد" description="أضف المعلنين من صفحة المعلنين أو استورد ملف CSV." />}
       </section>
     </div>
   );

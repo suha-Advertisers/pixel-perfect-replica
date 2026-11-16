@@ -1,38 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
-
-import { PageHeader } from "@/components/common/PageHeader";
-import { SectionPreview } from "@/components/common/SectionPreview";
-
-export const Route = createFileRoute("/list-requests")({
-  head: () => ({
-    meta: [
-      { title: "طلبات القوائم — دليل المعلنين" },
-      { name: "description", content: "القوائم المرسلة من المستخدمين بانتظار المراجعة." },
-      { property: "og:title", content: "طلبات القوائم — دليل المعلنين" },
-      { property: "og:description", content: "القوائم المرسلة من المستخدمين بانتظار المراجعة." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: ListRequestsPage,
-});
-
-function ListRequestsPage() {
-  return (
-    <div>
-      <PageHeader title="طلبات القوائم" description="القوائم المرسلة من المستخدمين بانتظار المراجعة." icon={Inbox} />
-      <SectionPreview
-        phase={6}
-        features={[
-        "إشعار عند وصول قائمة جديدة",
-        "عرض اسم القائمة ومنشئها والمتجر وتاريخ الإرسال",
-        "مراجعة المعلنين وروابطهم ومتابعيهم وأسعارهم",
-        "الموافقة أو الرفض مع ملاحظات داخلية",
-        "سجل كامل للطلبات والإجراءات",
-        "تصدير القائمة إلى Excel باسم ملف تختاره",
-        ]}
-      />
-    </div>
-  );
-}
+import { DataWorkspace } from "@/components/common/DataWorkspace";
+export const Route = createFileRoute("/list-requests")({ component: Page });
+function Page() { return <DataWorkspace title='طلبات القوائم' description='مراجعة القوائم التي أرسلها المستخدمون.' icon={Inbox} table='list_requests' fields={[{ key: 'status', label: 'الحالة', type: "select", options: ['pending', 'approved', 'rejected'], required: true }, { key: 'review_notes', label: 'ملاحظات المراجعة', type: 'textarea', required: false }]} columns={[{ key: 'list_id', label: 'معرف القائمة' }, { key: 'submitted_by', label: 'مقدم الطلب' }, { key: 'status', label: 'الحالة' }, { key: 'submitted_at', label: 'تاريخ الإرسال' }, { key: 'reviewed_at', label: 'تاريخ المراجعة' }]} permission='lists.review' softDelete={false} canCreate={false} canDelete={false} filters={['status']} />; }
