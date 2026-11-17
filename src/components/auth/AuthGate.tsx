@@ -23,7 +23,7 @@ function Screen({ icon, title, children }: { icon: ReactNode; title: string; chi
   );
 }
 
-function LoginScreen() {
+function LoginScreen({ onSignup }: { onSignup: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,11 +74,77 @@ function LoginScreen() {
         <button type="button" onClick={onForgot} disabled={busy} className="w-full text-center text-sm text-primary hover:underline">
           نسيت كلمة المرور؟
         </button>
+        <button type="button" onClick={onSignup} className="w-full text-center text-sm text-muted-foreground hover:underline">
+          لدي رمز دعوة
+        </button>
       </form>
       <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
         التسجيل بالدعوة فقط. إن لم تصلك دعوة فتواصل مع مدير النظام.
       </p>
     </Screen>
+  );
+}
+
+function SignupScreen({ initialCode, onBack }: { initialCode: string; onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState(initialCode);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (password.length < 10) return setError("كلمة المرور يجب ألا تقل عن 10 أحرف.");
+    if (/^\d+$/.test(password)) return setError("لا تجعل كلمة المرور أرقاماً فقط.");
+    setBusy(true);
+    const { data, error: err } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { invite_code: code.trim() } },
+    });
+    setBusy(false);
+    if (err) return setError("تعذّر إنشاء الحساب: الرمز غير صالح أو منتهٍ، أو البريد مستخدم.");
+    window.history.replaceState(null, "", window.location.pathname);
+    if (!data.session) setInfo("تم إنشاء الحساب. افتح رابط التأكيد الذي وصل إلى بريدك ثم سجّل الدخول.");
+  }
+
+  return (
+    <Screen icon={<LockKeyhole className="size-7" />} title="إنشاء حساب بدعوة">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="invite-code">رمز الدعوة</Label>
+          <Input id="invite-code" dir="ltr" autoComplete="off" required value={code} onChange={(e) => setCode(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="signup-email">البريد الإلكتروني</Label>
+          <Input id="signup-email" type="email" dir="ltr" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="signup-password">كلمة المرور (10 أحرف فأكثر)</Label>
+          <Input id="signup-password" type="password" dir="ltr" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {info && <p role="status" className="text-sm text-muted-foreground">{info}</p>}
+        <Button type="submit" variant="gold" size="lg" className="w-full" disabled={busy}>
+          {busy ? "جارٍ الإنشاء…" : "إنشاء الحساب"}
+        </Button>
+        <button type="button" onClick={onBack} className="w-full text-center text-sm text-primary hover:underline">
+          العودة لتسجيل الدخول
+        </button>
+      </form>
+    </Screen>
+  );
+}
+
+function SignedOutScreen() {
+  const initial = typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("invite") ?? "") : "";
+  const [mode, setMode] = useState<"login" | "signup">(initial ? "signup" : "login");
+  return mode === "signup" ? (
+    <SignupScreen initialCode={initial} onBack={() => setMode("login")} />
+  ) : (
+    <LoginScreen onSignup={() => setMode("signup")} />
   );
 }
 
@@ -142,7 +208,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (status === "loading") {
     return <main className="grid min-h-screen place-items-center bg-background text-muted-foreground">جارٍ التحميل…</main>;
   }
-  if (status === "signedOut") return <LoginScreen />;
+  if (status === "signedOut") return <SignedOutScreen />;
   if (status === "needsPassword") return <SetPasswordScreen />;
   if (status === "denied") return <DeniedScreen />;
   return <>{children}</>;
