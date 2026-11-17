@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 
 import heroImage from "@/assets/hero-studio.jpg";
+import { AdvertiserCards } from "@/components/advertisers/AdvertiserCards";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ADVERTISER_CARD_COLUMNS } from "@/lib/advertisers";
 import { SectionTitle } from "@/components/common/SectionTitle";
 import { StatCard } from "@/components/common/StatCard";
 import { RegionCard } from "@/components/regions/RegionCard";
@@ -42,7 +44,7 @@ function HomePage() {
     const [a,c,l] = await Promise.all([
       (supabase as any).from("advertisers").select("id", {count:"exact",head:true}).is("deleted_at",null),
       (supabase as any).from("campaigns").select("id", {count:"exact",head:true}),
-      (supabase as any).from("advertisers").select("id,full_name,username,city,platform,followers").is("deleted_at",null).order("created_at",{ascending:false}).limit(5)
+      (supabase as any).from("advertisers").select(ADVERTISER_CARD_COLUMNS).is("deleted_at",null).order("created_at",{ascending:false}).limit(120)
     ]);
     if(active){setStats({advertisers:a.count??0,campaigns:c.error?0:c.count??0,latest:l.data??[]});setStatsReady(true)}
   })(); return ()=>{active=false}; }, []);
@@ -128,7 +130,7 @@ function HomePage() {
             </Link>
           }
         />
-        {stats.latest.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{stats.latest.map((a:any)=><Link key={a.id} to="/advertisers" className="rounded-2xl border border-border bg-card p-4 shadow-soft hover:border-primary"><b>{a.full_name}</b><p className="mt-1 text-xs text-muted-foreground">{[a.username,a.city,a.platform].filter(Boolean).join(" · ")}</p><p className="mt-2 text-sm">{a.followers ? `${Number(a.followers).toLocaleString("ar-SA")} متابع` : "عدد المتابعين غير محدد"}</p></Link>)}</div> : <EmptyState icon={Users} title="لا يوجد معلنون بعد" description="أضف المعلنين من صفحة المعلنين أو استورد ملف CSV." />}
+        {stats.latest.length ? <AdvertiserCards rows={stats.latest} limit={8} /> : <EmptyState icon={Users} title="لا يوجد معلنون بعد" description="أضف المعلنين من صفحة المعلنين أو استورد ملف CSV." />}
       </section>
     </div>
   );
