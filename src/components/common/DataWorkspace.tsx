@@ -10,10 +10,12 @@ import { useAuth } from "@/lib/auth";
 
 type Field = { key: string; label: string; type?: "text"|"number"|"date"|"email"|"url"|"textarea"|"select"|"boolean"|"branch"; options?: string[]; required?: boolean };
 type Column = { key: string; label: string; format?: (value: any, row: any) => string };
-type Props = { title: string; description: string; icon: any; table: string; fields: Field[]; columns: Column[]; permission?: string; editPermission?: string; softDelete?: boolean; filters?: string[]; empty?: string; trashMode?: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean; primaryKey?: string; renderCards?: (rows: any[], ctx: { onEdit?: (row: any) => void }) => ReactNode };
+type Props = {
+  /** عمود الترتيب (الافتراضي created_at). */
+  orderBy?: string; title: string; description: string; icon: any; table: string; fields: Field[]; columns: Column[]; permission?: string; editPermission?: string; softDelete?: boolean; filters?: string[]; empty?: string; trashMode?: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean; primaryKey?: string; renderCards?: (rows: any[], ctx: { onEdit?: (row: any) => void }) => ReactNode };
 const db = supabase as any;
 
-export function DataWorkspace({ title, description, icon, table, fields, columns, permission, editPermission, softDelete = false, filters = [], empty = "لا توجد بيانات حتى الآن", trashMode = false, canCreate = true, canEdit = true, canDelete = true, primaryKey = "id", renderCards }: Props) {
+export function DataWorkspace({ title, description, icon, table, fields, columns, permission, editPermission, softDelete = false, filters = [], empty = "لا توجد بيانات حتى الآن", trashMode = false, canCreate = true, canEdit = true, canDelete = true, primaryKey = "id", renderCards, orderBy = "created_at" }: Props) {
   const { can } = useAuth();
   const allowed = !permission || can(permission);
   const canModify = allowed && (!editPermission || can(editPermission));
@@ -30,12 +32,12 @@ export function DataWorkspace({ title, description, icon, table, fields, columns
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
-    let request = db.from(table).select("*").order("created_at", { ascending: false }).limit(1000);
+    let request = db.from(table).select("*").order(orderBy, { ascending: false }).limit(1000);
     if (trashMode && table === "advertisers") request = request.not("deleted_at", "is", null); else if (softDelete && table === "advertisers") request = request.is("deleted_at", null);
     const { data, error: e } = await request;
     if (e) setError(e.message); else setRows(data ?? []);
     setLoading(false);
-  }, [table, softDelete]);
+  }, [table, softDelete, orderBy]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (fields.some(f => f.type === "branch")) void db.from("branches").select("id,name,city").eq("is_active",true).then(({data}:any)=>setBranches(data??[])); }, [table]);
 
