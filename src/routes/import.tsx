@@ -23,7 +23,7 @@ export const Route = createFileRoute("/import")({ component: ImportPage });
 const db = supabase as any;
 
 const HEADER_MAP: Record<string, string> = {
-  "الاسم الكامل": "full_name", "الاسم": "full_name", full_name: "full_name", name: "full_name",
+  "اسم المعلن": "full_name", "الاسم الكامل": "full_name", "الاسم": "full_name", full_name: "full_name", name: "full_name",
   "اسم المستخدم": "username", username: "username", "المعرف": "username",
   "المنطقة": "area", region: "area", region_slug: "area",
   "المدينة": "city_raw", city: "city_raw",
@@ -38,6 +38,7 @@ const HEADER_MAP: Record<string, string> = {
   "سعر المنزل": "price_home", price_home: "price_home",
   "سعر الضيافة": "price_hospitality", price_hospitality: "price_hospitality",
   "السعر": "price_text", "الأسعار": "price_text", "الاسعار": "price_text", price_text: "price_text",
+  "مرخص وموثوق": "verified", "موثوق ومرخص": "verified", "موثوق": "verified", "مرخص": "verified",
   "ملاحظات": "notes", "ملاحظات عامة": "notes", "الملاحظات": "notes", notes: "notes",
 };
 
@@ -95,8 +96,51 @@ async function fetchAll(select: string): Promise<any[]> {
   return out;
 }
 
+/** ملف بصيغة «صف لكل معلن» (أعمدة: رابط التيك توك/السناب/الانستا/منصة X…) يُحوَّل إلى «صف لكل حساب». */
+const WIDE_LINKS: { col: string; platform: string }[] = [
+  { col: "رابط التيك توك", platform: "TikTok" },
+  { col: "رابط السناب", platform: "Snapchat" },
+  { col: "رابط الانستا", platform: "Instagram" },
+  { col: "رابط الإنستغرام", platform: "Instagram" },
+  { col: "رابط يوتيوب", platform: "YouTube" },
+  { col: "رابط اليوتيوب", platform: "YouTube" },
+  { col: "رابط منصة X", platform: "X" },
+  { col: "رابط اكس", platform: "X" },
+];
+
+function followersFor(cell: string, platform: string): string {
+  const re = new RegExp(`${platform}\\s*[:：]?\\s*([\\d.,٠-٩]+\\s*[kKmMkمألف]*)`, "i");
+  return re.exec(cell)?.[1]?.trim() ?? "";
+}
+
+function widenToLong(rows: string[][]): string[][] | null {
+  const head = rows[0]!.map((h) => h.trim());
+  const links = WIDE_LINKS.filter((l) => head.includes(l.col));
+  if (!links.length) return null;
+  const col = (name: string) => head.indexOf(name);
+  const nameIdx = [col("اسم المعلن"), col("الاسم الكامل")].find((i) => i >= 0) ?? -1;
+  if (nameIdx < 0) return null;
+  const sub = col("المنطقة الفرعية");
+  const area = col("المنطقة");
+  const get = (cells: string[], i: number) => (i >= 0 ? (cells[i] ?? "").trim() : "");
+  const priceIdx = [col("سعر الإعلان"), col("السعر"), col("الأسعار")].find((i) => i >= 0) ?? -1;
+  const out: string[][] = [["الاسم الكامل", "المنطقة", "المنصة", "المتابعون", "رابط الحساب", "رقم التواصل", "السعر", "ملاحظات", "مرخص وموثوق"]];
+  for (const cells of rows.slice(1)) {
+    const name = get(cells, nameIdx);
+    if (!name) continue;
+    const place = get(cells, sub) || get(cells, area);
+    const common = [get(cells, col("رقم التواصل")), get(cells, priceIdx), get(cells, col("ملاحظات")), get(cells, col("مرخص وموثوق"))];
+    const fol = get(cells, col("المتابعون"));
+    const accounts = links.map((l) => ({ ...l, url: get(cells, col(l.col)) })).filter((a) => a.url);
+    if (!accounts.length) out.push([name, place, "", fol, "", ...common]);
+    for (const a of accounts) out.push([name, place, a.platform, followersFor(fol, a.platform), a.url, ...common]);
+  }
+  return out;
+}
+
 async function buildPlan(file: File): Promise<Plan> {
-  const rows = parseCsv(await file.text());
+  const parsed = parseCsv(await file.text());
+  const rows = parsed.length >= 2 ? (widenToLong(parsed) ?? parsed) : parsed;
   if (rows.length < 2) throw new Error("الملف فارغ أو لا يحتوي صفوفاً.");
   const headers = rows[0]!.map((h) => HEADER_MAP[h.trim().toLowerCase()] ?? HEADER_MAP[h.trim()] ?? "");
   if (!headers.includes("full_name")) throw new Error("لم أجد عمود «الاسم الكامل» في الملف.");
@@ -134,6 +178,7 @@ async function buildPlan(file: File): Promise<Plan> {
       const n = Number(toLatinDigits(v[p] ?? "").replace(/[^\d.]/g, ""));
       if (v[p] && Number.isFinite(n)) patch[p] = n;
     }
+    if ("verified" in v) patch["is_verified"] = /^(✓|✔|☑|نعم|yes|true|1)/i.test(v["verified"] ?? "");
     put("price_text", v["price_text"]);
     const pr = parsePrices(v["price_text"]);
     if (pr.attendance !== null && patch["price_attendance"] === undefined) patch["price_attendance"] = pr.attendance;
@@ -149,7 +194,7 @@ async function buildPlan(file: File): Promise<Plan> {
     merged.set(key, prev ? { rowNo: prev.rowNo, key, patch: { ...prev.patch, ...patch }, phone: phone ?? prev.phone } : { rowNo, key, patch, phone });
   });
 
-  const existing = await fetchAll("id,full_name,username,platform,profile_url,followers,region_slug,city,category,neighborhood,gender,price_attendance,price_home,price_hospitality,price_text,notes,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,deleted_at");
+  const existing = await fetchAll("id,full_name,username,platform,profile_url,followers,region_slug,city,category,neighborhood,gender,price_attendance,price_home,price_hospitality,price_text,notes,is_verified,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,deleted_at");
   const byKey = new Map<string, any>();
   for (const e of existing) byKey.set(keyOf(e.platform ?? "", e.profile_url ?? "", e.username ?? "", e.full_name ?? ""), e);
 
