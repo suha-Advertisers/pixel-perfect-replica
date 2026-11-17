@@ -187,3 +187,25 @@
 @utility animate-rise {
   animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+
+/* ردع التصوير والنسخ (انظر ScreenGuard) */
+html.guard-active body *:not(input):not(textarea) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html.guard-active input,
+html.guard-active textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+html.screen-hidden body {
+  visibility: hidden !important;
+}
+@media print {
+  html,
+  body {
+    display: none !important;
+  }
+}
