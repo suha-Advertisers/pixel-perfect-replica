@@ -10,8 +10,10 @@ import {
   areaHintFromFileName,
   normalizeAr,
   normalizePlatform,
+  cleanNote,
   parseCsv,
   parseFollowers,
+  parsePrices,
   toLatinDigits,
   urlKey,
 } from "@/lib/csv";
@@ -35,6 +37,8 @@ const HEADER_MAP: Record<string, string> = {
   "سعر الحضور": "price_attendance", price_attendance: "price_attendance",
   "سعر المنزل": "price_home", price_home: "price_home",
   "سعر الضيافة": "price_hospitality", price_hospitality: "price_hospitality",
+  "السعر": "price_text", "الأسعار": "price_text", "الاسعار": "price_text", price_text: "price_text",
+  "ملاحظات": "notes", "ملاحظات عامة": "notes", "الملاحظات": "notes", notes: "notes",
 };
 
 const PLATFORM_URL_COLUMN: Record<string, string> = {
@@ -130,6 +134,13 @@ async function buildPlan(file: File): Promise<Plan> {
       const n = Number(toLatinDigits(v[p] ?? "").replace(/[^\d.]/g, ""));
       if (v[p] && Number.isFinite(n)) patch[p] = n;
     }
+    put("price_text", v["price_text"]);
+    const pr = parsePrices(v["price_text"]);
+    if (pr.attendance !== null && patch["price_attendance"] === undefined) patch["price_attendance"] = pr.attendance;
+    if (pr.home !== null && patch["price_home"] === undefined) patch["price_home"] = pr.home;
+    const nt = cleanNote(v["notes"]);
+    put("notes", nt.note);
+    for (const l of nt.links) { const c = PLATFORM_URL_COLUMN[l.platform]; if (c) patch[c] = l.url; }
     const col = PLATFORM_URL_COLUMN[platform];
     if (col && url) patch[col] = url;
     const key = keyOf(platform, url, v["username"] ?? "", name);
@@ -138,7 +149,7 @@ async function buildPlan(file: File): Promise<Plan> {
     merged.set(key, prev ? { rowNo: prev.rowNo, key, patch: { ...prev.patch, ...patch }, phone: phone ?? prev.phone } : { rowNo, key, patch, phone });
   });
 
-  const existing = await fetchAll("id,full_name,username,platform,profile_url,followers,region_slug,city,category,neighborhood,gender,price_attendance,price_home,price_hospitality,deleted_at");
+  const existing = await fetchAll("id,full_name,username,platform,profile_url,followers,region_slug,city,category,neighborhood,gender,price_attendance,price_home,price_hospitality,price_text,notes,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,deleted_at");
   const byKey = new Map<string, any>();
   for (const e of existing) byKey.set(keyOf(e.platform ?? "", e.profile_url ?? "", e.username ?? "", e.full_name ?? ""), e);
 
