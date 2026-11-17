@@ -22,6 +22,7 @@ export type AdvertiserRow = {
   price_free?: boolean | null;
   price_text?: string | null;
   notes?: string | null;
+  is_verified?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -42,11 +43,12 @@ export type AdvertiserGroup = {
   price_free: boolean;
   priceTexts: string[];
   notes: string[];
+  verified: boolean;
 };
 
 /** أعمدة الجدول المطلوبة لعرض البطاقات (تُستخدم في كل الصفحات). */
 export const ADVERTISER_CARD_COLUMNS =
-  "id,full_name,username,region_slug,city,category,platform,followers,profile_url,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,price_attendance,price_home,price_hospitality,price_free,price_text,notes,created_at";
+  "id,full_name,username,region_slug,city,category,platform,followers,profile_url,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,price_attendance,price_home,price_hospitality,price_free,price_text,notes,is_verified,created_at";
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 const PLATFORM_ORDER = ["TikTok", "Instagram", "Snapchat", "YouTube", "X"];
@@ -130,6 +132,7 @@ export function groupAdvertisers(rows: AdvertiserRow[]): AdvertiserGroup[] {
       price_free: sorted.some((r) => r.price_free === true),
       priceTexts: uniq(sorted, (r) => r.price_text),
       notes: uniq(sorted, (r) => r.notes),
+      verified: sorted.some((r) => r.is_verified === true),
     };
   });
 }
