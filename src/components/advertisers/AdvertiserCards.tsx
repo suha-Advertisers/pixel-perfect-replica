@@ -1,4 +1,4 @@
-import { Check, Ghost, Globe, Instagram, ListPlus, Music2, Pencil, Plus, X, Youtube } from "lucide-react";
+import { BadgeCheck, Check, Ghost, Globe, Instagram, ListPlus, Music2, Pencil, Plus, X, Youtube } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -134,8 +134,17 @@ function AdvertiserCard({
           {initial}
         </div>
         <div className={`min-w-0 flex-1 space-y-1 ${onToggle && !onEdit ? "pe-8" : ""}`}>
-          <h3 className="truncate font-extrabold" title={group.name}>
-            {group.name}
+          <h3 className="flex items-center gap-1.5 font-extrabold" title={group.name}>
+            <span className="truncate">{group.name}</span>
+            {group.verified && (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700"
+                title="معلن موثوق ومرخص"
+              >
+                <BadgeCheck className="size-3.5" />
+                موثوق ومرخص
+              </span>
+            )}
           </h3>
           <p className="truncate text-xs text-muted-foreground">
             {[group.category, group.city].filter(Boolean).join(" · ") || "بدون تصنيف"}
