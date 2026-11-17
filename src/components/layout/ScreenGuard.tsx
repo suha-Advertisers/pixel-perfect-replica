@@ -1,30 +1,15 @@
-import { useEffect, useMemo } from "react";
-
-import { useAuth } from "@/lib/auth";
+import { useEffect } from "react";
 
 /**
  * ردع تصوير الشاشة ونسخ المحتوى.
  * تنبيه: المتصفحات لا تستطيع منع لقطة الشاشة من نظام الجوال/الكمبيوتر فعلياً، لذلك:
- *  1) علامة مائية باسم المستخدم وتاريخ اليوم على كل الشاشة (تكشف مصدر أي تسريب).
- *  2) إخفاء المحتوى عند مغادرة الصفحة أو الضغط على PrintScreen/الطباعة/الحفظ.
- *  3) منع القائمة اليمنى والنسخ والسحب خارج حقول الإدخال، ومنع الطباعة.
+ *  1) إخفاء المحتوى عند مغادرة الصفحة أو الضغط على PrintScreen/الطباعة/الحفظ.
+ *  2) منع القائمة اليمنى والنسخ والسحب خارج حقول الإدخال، ومنع الطباعة.
  */
 const isField = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
 
 export function ScreenGuard() {
-  const { email } = useAuth();
-
-  const watermark = useMemo(() => {
-    const day = new Date().toLocaleDateString("en-CA");
-    const label = `${email ?? ""}  ${day}`.replace(/[<>&"']/g, "");
-    const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="190">` +
-      `<text x="20" y="110" transform="rotate(-24 160 95)" font-family="sans-serif" font-size="15" ` +
-      `fill="rgba(90,70,40,0.11)">${label}</text></svg>`;
-    return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
-  }, [email]);
-
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add("guard-active");
@@ -82,11 +67,5 @@ export function ScreenGuard() {
     };
   }, []);
 
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[60] select-none"
-      style={{ backgroundImage: watermark, backgroundRepeat: "repeat" }}
-    />
-  );
+  return null;
 }
