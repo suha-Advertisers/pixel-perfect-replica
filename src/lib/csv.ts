@@ -122,3 +122,47 @@ export function areaHintFromFileName(fileName: string): string {
     .filter((w) => w && !FILE_STOP_WORDS.has(w.toLowerCase()))
     .join(" ");
 }
+
+/** استخراج سعر الحضوري والمنزلي من نص حر مثل «حضوري: 600 ريال | منزلي: 400 ريال». */
+export function parsePrices(raw: string | undefined | null): { attendance: number | null; home: number | null } {
+  const s = toLatinDigits(raw ?? "").replace(/(\d),(\d{3})/g, "$1$2");
+  const grab = (word: string): number | null => {
+    const hits: { idx: number; n: number }[] = [];
+    const before = new RegExp(`${word}\\s*[:：]?\\s*(\\d+)`, "g"); // حضوري 800
+    const after = new RegExp(`(\\d+)[ \\t]*(?:ريال|ر\\.?س)?[ \\t]*${word}`, "g"); // 800 ريال حضوري
+    const both = new RegExp(`(\\d+)[ \\t]*(?:ريال|ر\\.?س)?[ \\t]*حضوري[ \\t]*أو[ \\t]*منزلي`, "g");
+    for (const re of [before, after, both]) {
+      for (const m of s.matchAll(re)) hits.push({ idx: m.index ?? 0, n: Number(m[1]) });
+    }
+    if (!hits.length) return null;
+    hits.sort((a, b) => a.idx - b.idx);
+    return hits[0]!.n;
+  };
+  return { attendance: grab("حضوري"), home: grab("منزلي") };
+}
+
+export type NoteLink = { platform: string; url: string };
+
+export function platformFromUrl(url: string): string | null {
+  const h = url.toLowerCase();
+  if (h.includes("tiktok.com")) return "TikTok";
+  if (h.includes("snapchat.com")) return "Snapchat";
+  if (h.includes("instagram.com")) return "Instagram";
+  if (h.includes("youtube.com") || h.includes("youtu.be")) return "YouTube";
+  if (/(^|\/\/|\.)x\.com|twitter\.com/.test(h)) return "X";
+  return null;
+}
+
+/** ينظّف الملاحظة: يحوّل =HYPERLINK(...) إلى رابط، ويحذف بقايا عناوين الأعمدة. */
+export function cleanNote(raw: string | undefined | null): { note: string | null; links: NoteLink[] } {
+  let s = (raw ?? "").trim();
+  const links: NoteLink[] = [];
+  s = s.replace(/=HYPERLINK\(\s*"([^"]+)"\s*,\s*"([^"]*)"\s*\)/gi, (_m, url: string) => {
+    const platform = platformFromUrl(url);
+    if (platform) links.push({ platform, url });
+    return "";
+  });
+  s = s.replace(/رابط\s+(?:حساب|منصة)\s+X\s*(?:رابط\s+(?:حساب|منصة)\s+X\s*)?:?/g, "");
+  s = s.replace(/^[\s|؛;،,:\-–]+|[\s|؛;،,:\-–]+$/g, "").replace(/\s*\|\s*\|\s*/g, " | ").trim();
+  return { note: s || null, links };
+}
