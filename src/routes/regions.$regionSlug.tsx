@@ -3,6 +3,7 @@ import { Building2, ChevronLeft, MapPin, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { AdvertiserCards } from "@/components/advertisers/AdvertiserCards";
+import { ADVERTISER_CARD_COLUMNS } from "@/lib/advertisers";
 import { SectionTitle } from "@/components/common/SectionTitle";
 import {
   Breadcrumb,
@@ -64,7 +65,7 @@ function RegionPage() {
   const { city } = Route.useSearch();
   const region = findRegion(regionSlug)!;
   const [advertisers, setAdvertisers] = useState<any[]>([]);
-  useEffect(() => { let active=true; (async()=>{let q=(supabase as any).from("advertisers").select("id,full_name,username,region_slug,city,category,platform,followers,profile_url,price_attendance,price_home,price_hospitality,price_free").eq("region_slug",regionSlug).is("deleted_at",null).order("followers",{ascending:false,nullsFirst:false}).limit(1000);if(city)q=q.eq("city",city);const {data}=await q;if(active)setAdvertisers(data??[])})();return()=>{active=false}},[regionSlug,city]);
+  useEffect(() => { let active=true; (async()=>{let q=(supabase as any).from("advertisers").select(ADVERTISER_CARD_COLUMNS).eq("region_slug",regionSlug).is("deleted_at",null).order("followers",{ascending:false,nullsFirst:false}).limit(1000);if(city)q=q.eq("city",city);const {data}=await q;if(active)setAdvertisers(data??[])})();return()=>{active=false}},[regionSlug,city]);
 
   return (
     <div className="space-y-8">
