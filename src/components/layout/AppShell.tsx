@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
+import { ScreenGuard } from "./ScreenGuard";
 import { SidebarNav } from "./SidebarNav";
 import { Topbar } from "./Topbar";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
+      <ScreenGuard />
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-72 lg:block">
         <SidebarNav />
       </aside>
