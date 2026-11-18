@@ -1,4 +1,4 @@
-import { BadgeCheck, Check, Ghost, Globe, Instagram, ListPlus, Music2, Pencil, Plus, X, Youtube } from "lucide-react";
+import { BadgeCheck, Check, Ghost, Globe, Instagram, ListPlus, Music2, Pencil, Plus, Trash2, X, Youtube } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,6 +22,7 @@ type Props = {
   rows: AdvertiserRow[];
   selectable?: boolean;
   onEdit?: ((row: AdvertiserRow) => void) | undefined;
+  onDelete?: ((rows: AdvertiserRow[]) => void) | undefined;
   limit?: number;
 };
 
@@ -97,11 +98,13 @@ function PriceStrip({ group }: { group: AdvertiserGroup }) {
 function AdvertiserCard({
   group,
   onEdit,
+  onDelete,
   selected,
   onToggle,
 }: {
   group: AdvertiserGroup;
   onEdit?: ((row: AdvertiserRow) => void) | undefined;
+  onDelete?: ((rows: AdvertiserRow[]) => void) | undefined;
   selected?: boolean | undefined;
   onToggle?: (() => void) | undefined;
 }) {
@@ -110,7 +113,7 @@ function AdvertiserCard({
     (group.price_attendance !== null || group.price_home !== null);
 
   return (
-    <article className={`relative flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft transition hover:-translate-y-0.5 hover:border-primary ${
+    <article className={`relative flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft transition [contain-intrinsic-size:auto_280px] [content-visibility:auto] hover:-translate-y-0.5 hover:border-primary ${
       selected ? "border-primary ring-2 ring-primary" : "border-border"
     }`}>
       {onToggle && (
@@ -149,12 +152,21 @@ function AdvertiserCard({
           </div>
         </div>
 
-        {onEdit && (
-          <Button size="icon" variant="ghost" aria-label="تعديل"
-            className={onToggle ? "me-7" : ""}
-            onClick={() => onEdit(group.primary)}>
-            <Pencil className="size-4" />
-          </Button>
+        {(onEdit || onDelete) && (
+          <div className={`flex shrink-0 ${onToggle ? "me-7" : ""}`}>
+            {onEdit && (
+              <Button size="icon" variant="ghost" aria-label="تعديل"
+                onClick={() => onEdit(group.primary)}>
+                <Pencil className="size-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button size="icon" variant="ghost" aria-label="حذف المعلن"
+                onClick={() => onDelete(group.accounts)}>
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -393,7 +405,7 @@ function ListPickerDialog({
   );
 }
 
-export function AdvertiserCards({ rows, onEdit, limit, selectable = true }: Props) {
+export function AdvertiserCards({ rows, onEdit, onDelete, limit, selectable = true }: Props) {
   const { can } = useAuth();
   const canSelect = selectable && can("lists.own");
 
@@ -429,6 +441,7 @@ export function AdvertiserCards({ rows, onEdit, limit, selectable = true }: Prop
             key={g.key}
             group={g}
             onEdit={onEdit}
+            onDelete={onDelete}
             selected={selected.has(g.primary.id)}
             onToggle={canSelect ? () => toggle(g.primary.id) : undefined}
           />
