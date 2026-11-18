@@ -44,6 +44,7 @@ export type AdvertiserGroup = {
   priceTexts: string[];
   notes: string[];
   verified: boolean;
+  tiktokFollowers: number | null;
 };
 
 /** أعمدة الجدول المطلوبة لعرض البطاقات (تُستخدم في كل الصفحات). */
@@ -60,6 +61,24 @@ const URL_COLUMNS: [string, keyof AdvertiserRow][] = [
   ["X", "x_url"],
 ];
 
+const PLATFORM_COLUMN: Record<string, keyof AdvertiserRow> = {
+  Instagram: "instagram_url",
+  Snapchat: "snapchat_url",
+  TikTok: "tiktok_url",
+  YouTube: "youtube_url",
+  X: "x_url",
+};
+
+/** رابط حساب الصف: الرابط الرئيسي، وإن لم يوجد فرابط منصته (مثل tiktok_url). */
+function accountUrl(a: AdvertiserRow): string {
+  const main = (a.profile_url ?? "").trim();
+  if (main) return main;
+  const col = PLATFORM_COLUMN[(a.platform ?? "").trim()];
+  return col ? String(a[col] ?? "").trim() : "";
+}
+
+const isTikTok = (r: AdvertiserRow) => /^tiktok/i.test((r.platform ?? "").trim());
+
 function collectLinks(accounts: AdvertiserRow[]): AccountLink[] {
   const seen = new Map<string, AccountLink>();
   const add = (platform: string | null | undefined, url: string | null | undefined, followers: number | null) => {
@@ -75,7 +94,7 @@ function collectLinks(accounts: AdvertiserRow[]): AccountLink[] {
     seen.set(k, { platform: p, url: /^https?:\/\//i.test(u) ? u : `https://${u}`, followers });
   };
   for (const a of accounts) {
-    add(a.platform, a.profile_url, a.followers ?? null);
+    add((a.platform ?? "").trim(), accountUrl(a), a.followers ?? null);
     for (const [p, col] of URL_COLUMNS) add(p, a[col] as string | null | undefined, null);
   }
   return [...seen.values()].sort((a, b) => {
@@ -113,10 +132,15 @@ export function groupAdvertisers(rows: AdvertiserRow[]): AdvertiserGroup[] {
     return out;
   };
   return [...map.entries()].map(([key, accounts]) => {
-    const sorted = [...accounts].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
+    const sorted = [...accounts].sort(
+      (a, b) => Number(isTikTok(b)) - Number(isTikTok(a)) || (b.followers ?? 0) - (a.followers ?? 0),
+    );
     const primary = sorted[0]!;
     const links = collectLinks(sorted);
     const withFollowers = links.filter((l) => l.followers !== null);
+    const orphanTotal = sorted.reduce((s, r) => s + (r.followers != null && !accountUrl(r) ? r.followers : 0), 0);
+    const linkTotal = withFollowers.reduce((s, l) => s + (l.followers ?? 0), 0);
+    const tiktokRow = sorted.find((r) => isTikTok(r) && r.followers != null);
     return {
       key,
       name: primary.full_name,
@@ -125,7 +149,8 @@ export function groupAdvertisers(rows: AdvertiserRow[]): AdvertiserGroup[] {
       category: first(sorted, (r) => r.category),
       city: first(sorted, (r) => r.city),
       links,
-      totalFollowers: withFollowers.length ? withFollowers.reduce((s, l) => s + (l.followers ?? 0), 0) : null,
+      totalFollowers: withFollowers.length || orphanTotal ? linkTotal + orphanTotal : null,
+      tiktokFollowers: tiktokRow?.followers ?? null,
       price_attendance: first(sorted, (r) => r.price_attendance),
       price_home: first(sorted, (r) => r.price_home),
       price_hospitality: first(sorted, (r) => r.price_hospitality),
