@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Plus, Search, Pencil, Trash2, RotateCcw, Download, RefreshCw, LayoutGrid, Rows3 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { parseFollowersInput } from "@/lib/followers";
 
 type Field = {
   key: string;
   label: string;
-  type?: "text" | "number" | "date" | "email" | "url" | "textarea" | "select" | "boolean" | "branch";
+  type?: "text" | "number" | "date" | "email" | "url" | "textarea" | "select" | "boolean" | "branch" | "followers" | "region" | "city";
   options?: string[];
   required?: boolean;
 };
@@ -40,10 +41,35 @@ type Props = {
   canEdit?: boolean;
   canDelete?: boolean;
   primaryKey?: string;
-  renderCards?: (rows: any[], ctx: { onEdit?: (row: any) => void }) => ReactNode;
+  renderCards?: (rows: any[], ctx: { onEdit?: (row: any) => void; onDelete?: (rows: any[]) => void }) => ReactNode;
 };
 
 const db = supabase as any;
+
+function FollowersField({ value, required, onChange }: { value: unknown; required: boolean; onChange: (v: string) => void }) {
+  const text = String(value ?? "");
+  const r = parseFollowersInput(text);
+  return (
+    <div className="space-y-1">
+      <Input
+        inputMode="decimal"
+        dir="ltr"
+        autoComplete="off"
+        required={required}
+        placeholder="مثال: 181.6k أو 181600"
+        value={text}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {r.error ? (
+        <p className="text-xs text-destructive">{r.error}</p>
+      ) : r.value !== null ? (
+        <p className="text-xs text-muted-foreground">
+          = {r.value.toLocaleString("en")} متابع{r.note ? ` (${r.note})` : ""}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export function DataWorkspace({
   title,
@@ -84,6 +110,12 @@ export function DataWorkspace({
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"cards" | "table">(renderCards ? "cards" : "table");
+  const [regions, setRegions] = useState<{ slug: string; name_ar: string }[]>([]);
+  const [cities, setCities] = useState<{ region_slug: string; name_ar: string }[]>([]);
+  const deferredQuery = useDeferredValue(query);
+  const filtersKey = filters.join("|");
+  const followersNeeded =
+    table === "advertisers" && (!editingMode || !editing?.platform || /^tiktok/i.test(String(editing.platform).trim()));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,6 +155,17 @@ export function DataWorkspace({
     }
   }, [table, fields]);
 
+  useEffect(() => {
+    if (!fields.some((f) => f.type === "region" || f.type === "city")) return;
+    void Promise.all([
+      db.from("regions").select("slug,name_ar").order("name_ar"),
+      db.from("cities").select("region_slug,name_ar").order("name_ar"),
+    ]).then(([r, c]: any[]) => {
+      setRegions(r.data ?? []);
+      setCities(c.data ?? []);
+    });
+  }, [table, fields]);
+
   const visible = useMemo(() => rows.filter((row) => {
     const text = [
       row.full_name,
@@ -135,11 +178,11 @@ export function DataWorkspace({
       row.status,
     ].filter(Boolean).join(" ").toLowerCase();
 
-    const matches = !query || text.includes(query.toLowerCase());
+    const matches = !deferredQuery || text.includes(deferredQuery.toLowerCase());
     const matchesFilter = filter === "الكل" || filters.some((k) => String(row[k] ?? "") === filter);
 
     return matches && matchesFilter;
-  }), [rows, query, filter, filters]);
+  }), [rows, deferredQuery, filter, filtersKey]);
 
   function closeEditor() {
     setEditing(undefined);
@@ -237,6 +280,14 @@ export function DataWorkspace({
 
         const v = form[f.key];
 
+        if (f.type === "followers") {
+          const parsed = parseFollowersInput(String(v ?? ""));
+          if (parsed.error) throw new Error(parsed.error);
+          if (parsed.value === null && followersNeeded) throw new Error("عدد متابعين تيك توك مطلوب.");
+          payload[f.key] = parsed.value;
+          continue;
+        }
+
         if (f.required && (v === "" || v === null || v === undefined)) {
           throw new Error(`الحقل "${f.label}" مطلوب.`);
         }
@@ -273,6 +324,13 @@ export function DataWorkspace({
 
         payload.reviewer_id = userData.user?.id ?? null;
         payload.reviewed_at = new Date().toISOString();
+      }
+
+      if (table === "advertisers") {
+        if (!editingMode && !payload.platform) payload.platform = "TikTok";
+        if (editingMode && typeof editing?.platform === "string" && editing.platform !== editing.platform.trim()) {
+          payload.platform = editing.platform.trim();
+        }
       }
 
       let result: any;
@@ -369,6 +427,17 @@ export function DataWorkspace({
         : await db.from(table).delete().eq(primaryKey, row[primaryKey]);
 
     if (result.error) setError(result.error.message);
+    else await load();
+  }
+
+  async function removeMany(list: any[]) {
+    if (!canModify || !list.length) return;
+    const label = list[0]?.full_name ?? "المعلن";
+    if (!window.confirm(`نقل «${label}» (${list.length} حساب) إلى سلة المحذوفات؟ يمكنك استعادته لاحقاً من السلة.`)) return;
+    const ids = list.map((r) => r[primaryKey]).filter((id) => id !== null && id !== undefined && id !== "");
+    if (!ids.length) return;
+    const { error: e } = await db.from(table).update({ deleted_at: new Date().toISOString() }).in(primaryKey, ids);
+    if (e) setError("تعذّر الحذف: " + e.message);
     else await load();
   }
 
@@ -477,7 +546,10 @@ export function DataWorkspace({
                 <div className="mt-5">
                   {renderCards(visible, {
                     ...(canModify && canEdit
-                      ? { onEdit: (row: any) => void open(row) }
+                      ? {
+                          onEdit: (row: any) => void open(row),
+                          ...(canDelete && softDelete ? { onDelete: (list: any[]) => void removeMany(list) } : {}),
+                        }
                       : {})
                   })}
                 </div>
@@ -587,7 +659,7 @@ export function DataWorkspace({
         >
           <form
             onSubmit={save}
-            className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-card p-6 shadow-xl"
+            className="max-h-[92dvh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-card p-4 shadow-xl sm:p-6"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">
@@ -607,9 +679,42 @@ export function DataWorkspace({
                     key={f.key}
                     className={`space-y-2 ${f.type === "textarea" ? "sm:col-span-2" : ""}`}
                   >
-                    <Label>{f.label}{f.required ? " *" : ""}</Label>
+                    <Label>{f.label}{f.required || (f.type === "followers" && followersNeeded) ? " *" : ""}</Label>
 
-                    {f.type === "branch" ? (
+                    {f.type === "region" ? (
+                      <select
+                        required={f.required}
+                        className="h-10 w-full rounded-md border border-input bg-background px-3"
+                        value={form[f.key] ?? ""}
+                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value, city: "" }))}
+                      >
+                        <option value="">اختر المنطقة</option>
+                        {regions.map((r) => <option key={r.slug} value={r.slug}>{r.name_ar}</option>)}
+                        {form[f.key] && !regions.some((r) => r.slug === form[f.key]) && (
+                          <option value={form[f.key]}>{form[f.key]} (غير معروفة)</option>
+                        )}
+                      </select>
+                    ) : f.type === "city" ? (
+                      <select
+                        className="h-10 w-full rounded-md border border-input bg-background px-3"
+                        value={form[f.key] ?? ""}
+                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      >
+                        <option value="">بدون</option>
+                        {cities
+                          .filter((c) => c.region_slug === form["region_slug"])
+                          .map((c) => <option key={c.name_ar} value={c.name_ar}>{c.name_ar}</option>)}
+                        {form[f.key] && !cities.some((c) => c.region_slug === form["region_slug"] && c.name_ar === form[f.key]) && (
+                          <option value={form[f.key]}>{form[f.key]}</option>
+                        )}
+                      </select>
+                    ) : f.type === "followers" ? (
+                      <FollowersField
+                        value={form[f.key]}
+                        required={followersNeeded}
+                        onChange={(v) => setForm((p) => ({ ...p, [f.key]: v }))}
+                      />
+                    ) : f.type === "branch" ? (
                       <select
                         className="h-10 w-full rounded-md border border-input bg-background px-3"
                         value={form[f.key] ?? ""}
@@ -653,8 +758,8 @@ export function DataWorkspace({
                       <Input
                         required={f.required}
                         type={f.type ?? "text"}
-                        min={f.key === "followers" ? 0 : undefined}
-                        step={f.key === "followers" ? 1 : undefined}
+                        min={f.type === "number" ? 0 : undefined}
+                        step={f.type === "number" ? "any" : undefined}
                         dir={f.type === "url" || f.type === "email" ? "ltr" : undefined}
                         value={form[f.key] ?? ""}
                         onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
