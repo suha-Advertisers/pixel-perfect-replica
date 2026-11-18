@@ -171,7 +171,16 @@ function AdvertiserCard({
       </div>
 
       <p className="text-sm font-semibold">
-        {group.totalFollowers ? (
+        {group.tiktokFollowers !== null ? (
+          <>
+            <span dir="ltr">{formatFollowers(group.tiktokFollowers)}</span> متابع تيك توك
+            {group.totalFollowers !== null && group.totalFollowers > group.tiktokFollowers && (
+              <span className="ms-2 text-xs font-normal text-muted-foreground">
+                المجموع: <span dir="ltr">{formatFollowers(group.totalFollowers)}</span>
+              </span>
+            )}
+          </>
+        ) : group.totalFollowers ? (
           <>
             <span dir="ltr">{formatFollowers(group.totalFollowers)}</span> متابع
           </>
