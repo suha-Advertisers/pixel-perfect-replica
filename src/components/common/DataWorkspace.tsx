@@ -76,7 +76,11 @@ export function DataWorkspace({
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("الكل");
+
   const [editing, setEditing] = useState<any | null | undefined>(undefined);
+  const [editingMode, setEditingMode] = useState(false);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"cards" | "table">(renderCards ? "cards" : "table");
@@ -137,24 +141,42 @@ export function DataWorkspace({
     return matches && matchesFilter;
   }), [rows, query, filter, filters]);
 
+  function closeEditor() {
+    setEditing(undefined);
+    setEditingMode(false);
+    setEditingId(null);
+    setForm({});
+  }
+
   async function open(row?: any) {
     setError("");
     setForm({});
+
+    const isEditing = row !== undefined && row !== null;
+    const rowId = isEditing ? row[primaryKey] : null;
+
+    if (isEditing && (rowId === null || rowId === undefined || rowId === "")) {
+      setError("تعذّر فتح التعديل لأن معرّف السجل غير موجود. لم تتم إضافة أي معلن.");
+      return;
+    }
+
+    setEditingMode(isEditing);
+    setEditingId(rowId ?? null);
     setEditing(row ?? {});
 
     try {
-      const next = row
+      const next = isEditing
         ? Object.fromEntries(fields.map((f) => [f.key, row[f.key] ?? ""]))
         : {};
 
-      if (row?.id && table === "advertisers") {
+      if (isEditing && table === "advertisers") {
         const tasks: Promise<any>[] = [];
 
         if (can("advertisers.view_phone")) {
           tasks.push(
             db.from("advertiser_phones")
               .select("phone")
-              .eq("advertiser_id", row.id)
+              .eq("advertiser_id", rowId)
               .maybeSingle()
           );
         } else {
@@ -165,7 +187,7 @@ export function DataWorkspace({
           tasks.push(
             db.from("advertiser_admin_notes")
               .select("notes")
-              .eq("advertiser_id", row.id)
+              .eq("advertiser_id", rowId)
               .maybeSingle()
           );
         } else {
@@ -189,7 +211,7 @@ export function DataWorkspace({
       setForm(next);
     } catch (err: any) {
       setError("تعذّر تحميل بيانات التعديل: " + (err?.message ?? "خطأ غير معروف"));
-      setEditing(undefined);
+      closeEditor();
     }
   }
 
@@ -197,6 +219,11 @@ export function DataWorkspace({
     e.preventDefault();
 
     if (!canModify || saving) return;
+
+    if (editingMode && (editingId === null || editingId === undefined || editingId === "")) {
+      setError("لا يمكن الحفظ: معرّف السجل غير موجود. لم تتم إضافة سجل جديد.");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -210,14 +237,29 @@ export function DataWorkspace({
 
         const v = form[f.key];
 
-        payload[f.key] =
-          f.type === "boolean"
-            ? Boolean(v)
-            : v === "" || v == null
-              ? null
-              : f.type === "number"
-                ? Number(v)
-                : v;
+        if (f.required && (v === "" || v === null || v === undefined)) {
+          throw new Error(`الحقل "${f.label}" مطلوب.`);
+        }
+
+        if (f.type === "number" && v !== "" && v !== null && v !== undefined) {
+          const numberValue = Number(v);
+
+          if (!Number.isFinite(numberValue)) {
+            throw new Error(`قيمة الحقل "${f.label}" غير صحيحة.`);
+          }
+
+          if (table === "advertisers" && f.key === "followers") {
+            if (!Number.isSafeInteger(numberValue) || numberValue < 0) {
+              throw new Error("عدد المتابعين يجب أن يكون رقماً صحيحاً موجباً أو صفراً.");
+            }
+          }
+
+          payload[f.key] = numberValue;
+        } else if (f.type === "boolean") {
+          payload[f.key] = Boolean(v);
+        } else {
+          payload[f.key] = v === "" || v === null || v === undefined ? null : v;
+        }
       }
 
       if (["advertisers", "campaigns", "branches", "personal_lists"].includes(table)) {
@@ -233,25 +275,36 @@ export function DataWorkspace({
         payload.reviewed_at = new Date().toISOString();
       }
 
-      const result = editing?.[primaryKey]
-        ? await db.from(table)
-            .update(payload)
-            .eq(primaryKey, editing[primaryKey])
-            .select(primaryKey)
-            .single()
-        : await db.from(table)
-            .insert(payload)
-            .select(primaryKey)
-            .single();
+      let result: any;
+
+      if (editingMode) {
+        result = await db.from(table)
+          .update(payload)
+          .eq(primaryKey, editingId)
+          .select(primaryKey)
+          .maybeSingle();
+      } else {
+        result = await db.from(table)
+          .insert(payload)
+          .select(primaryKey)
+          .single();
+      }
 
       if (result.error) throw result.error;
 
-      if (!result.data?.[primaryKey] && !editing?.[primaryKey]) {
-        throw new Error("لم يرجع الخادم رقم السجل بعد الحفظ.");
+      if (editingMode && !result.data?.[primaryKey]) {
+        throw new Error(
+          "لم يتم تحديث السجل. تحقق من صلاحية التعديل أو وجود السجل. لم تتم إضافة سجل جديد."
+        );
+      }
+
+      if (!editingMode && !result.data?.[primaryKey]) {
+        throw new Error("لم يرجع الخادم معرّف السجل بعد الإضافة.");
       }
 
       if (
         table === "list_requests" &&
+        editingMode &&
         editing?.list_id &&
         (form.status === "approved" || form.status === "rejected")
       ) {
@@ -262,7 +315,7 @@ export function DataWorkspace({
         if (parentUpdate.error) throw parentUpdate.error;
       }
 
-      const recordId = editing?.[primaryKey] ?? result.data?.[primaryKey];
+      const recordId = editingMode ? editingId : result.data?.[primaryKey];
 
       if (table === "advertisers" && recordId) {
         const privateTasks: Promise<any>[] = [];
@@ -288,14 +341,19 @@ export function DataWorkspace({
         const sideResults = await Promise.all(privateTasks);
         const failed = sideResults.find((r: any) => r.error);
 
-        if (failed?.error) throw failed.error;
+        if (failed?.error) {
+          throw new Error(
+            "تم حفظ بيانات المعلن الأساسية، لكن تعذّر حفظ أحد الحقول الخاصة: " +
+            failed.error.message
+          );
+        }
       }
 
-      setEditing(undefined);
+      closeEditor();
       await load();
 
     } catch (err: any) {
-      setError("لم يتم الحفظ: " + (err?.message ?? "خطأ غير معروف"));
+      setError("لم يتم إكمال الحفظ: " + (err?.message ?? "خطأ غير معروف"));
     } finally {
       setSaving(false);
     }
@@ -347,27 +405,42 @@ export function DataWorkspace({
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative min-w-0 flex-1">
             <Search className="absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="ابحث في السجلات…" className="pe-9" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ابحث في السجلات…"
+              className="pe-9"
+            />
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <select className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-              value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
               <option>الكل</option>
               {distinct.map((v) => <option key={v}>{v}</option>)}
             </select>
 
             {renderCards && (
               <div className="flex overflow-hidden rounded-md border border-input">
-                <Button type="button" variant={view === "cards" ? "gold" : "ghost"}
-                  className="rounded-none" aria-pressed={view === "cards"}
-                  onClick={() => setView("cards")}>
+                <Button
+                  type="button"
+                  variant={view === "cards" ? "gold" : "ghost"}
+                  className="rounded-none"
+                  aria-pressed={view === "cards"}
+                  onClick={() => setView("cards")}
+                >
                   <LayoutGrid className="ms-2 size-4" />كروت
                 </Button>
-                <Button type="button" variant={view === "table" ? "gold" : "ghost"}
-                  className="rounded-none" aria-pressed={view === "table"}
-                  onClick={() => setView("table")}>
+                <Button
+                  type="button"
+                  variant={view === "table" ? "gold" : "ghost"}
+                  className="rounded-none"
+                  aria-pressed={view === "table"}
+                  onClick={() => setView("table")}
+                >
                   <Rows3 className="ms-2 size-4" />جدول
                 </Button>
               </div>
@@ -415,7 +488,9 @@ export function DataWorkspace({
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
                   {columns.map((c) => (
-                    <th key={c.key} className="px-3 py-3 text-start font-semibold">{c.label}</th>
+                    <th key={c.key} className="px-3 py-3 text-start font-semibold">
+                      {c.label}
+                    </th>
                   ))}
                   {(canModify && canEdit || allowed && trashMode) && (
                     <th className="px-3 py-3 text-start">الإجراءات</th>
@@ -425,9 +500,17 @@ export function DataWorkspace({
 
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={columns.length + 1} className="p-8 text-center text-muted-foreground">جارٍ تحميل البيانات…</td></tr>
+                  <tr>
+                    <td colSpan={columns.length + 1} className="p-8 text-center text-muted-foreground">
+                      جارٍ تحميل البيانات…
+                    </td>
+                  </tr>
                 ) : visible.length === 0 ? (
-                  <tr><td colSpan={columns.length + 1} className="p-8 text-center text-muted-foreground">{empty}</td></tr>
+                  <tr>
+                    <td colSpan={columns.length + 1} className="p-8 text-center text-muted-foreground">
+                      {empty}
+                    </td>
+                  </tr>
                 ) : visible.map((row) => (
                   <tr key={row[primaryKey]} className="border-b border-border/70 last:border-0 hover:bg-muted/30">
                     {columns.map((c) => (
@@ -440,25 +523,42 @@ export function DataWorkspace({
                       <td className="px-3 py-3">
                         <div className="flex gap-1">
                           {trashMode ? (
-                            <Button type="button" size="sm" variant="outline"
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
                               onClick={async () => {
-                                const { error } = await db.from(table).update({ deleted_at: null }).eq("id", row.id);
+                                const { error } = await db.from(table)
+                                  .update({ deleted_at: null })
+                                  .eq(primaryKey, row[primaryKey]);
+
                                 if (error) setError(error.message);
                                 else await load();
-                              }}>
+                              }}
+                            >
                               <RotateCcw className="ms-1 size-4" />استعادة
                             </Button>
                           ) : (
                             <>
                               {canEdit && (
-                                <Button type="button" size="icon" variant="ghost"
-                                  aria-label="تعديل" onClick={() => void open(row)}>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label="تعديل"
+                                  onClick={() => void open(row)}
+                                >
                                   <Pencil className="size-4" />
                                 </Button>
                               )}
                               {canEdit && canDelete && (
-                                <Button type="button" size="icon" variant="ghost"
-                                  aria-label="حذف" onClick={() => void remove(row)}>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label="حذف"
+                                  onClick={() => void remove(row)}
+                                >
                                   <Trash2 className="size-4 text-destructive" />
                                 </Button>
                               )}
@@ -480,16 +580,22 @@ export function DataWorkspace({
       </section>
 
       {editing !== undefined && canModify && canEdit && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
-          role="dialog" aria-modal="true">
-          <form onSubmit={save}
-            className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-card p-6 shadow-xl">
-
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <form
+            onSubmit={save}
+            className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-card p-6 shadow-xl"
+          >
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">
-                {editing?.[primaryKey] ? "تعديل" : "إضافة"} — {title}
+                {editingMode ? "تعديل" : "إضافة"} — {title}
               </h2>
-              <Button type="button" variant="ghost" onClick={() => setEditing(undefined)}>إغلاق</Button>
+              <Button type="button" variant="ghost" onClick={closeEditor}>
+                إغلاق
+              </Button>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -497,47 +603,71 @@ export function DataWorkspace({
                 .filter((f) => f.key !== "phone" || can("advertisers.view_phone"))
                 .filter((f) => f.key !== "admin_notes" || can("advertisers.view_notes"))
                 .map((f) => (
-                  <div key={f.key} className={`space-y-2 ${f.type === "textarea" ? "sm:col-span-2" : ""}`}>
+                  <div
+                    key={f.key}
+                    className={`space-y-2 ${f.type === "textarea" ? "sm:col-span-2" : ""}`}
+                  >
                     <Label>{f.label}{f.required ? " *" : ""}</Label>
 
                     {f.type === "branch" ? (
-                      <select className="h-10 w-full rounded-md border border-input bg-background px-3"
+                      <select
+                        className="h-10 w-full rounded-md border border-input bg-background px-3"
                         value={form[f.key] ?? ""}
-                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value || null }))}>
+                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value || null }))}
+                      >
                         <option value="">مشترك بين الفروع</option>
                         {branches.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}{b.city ? ` — ${b.city}` : ""}</option>
+                          <option key={b.id} value={b.id}>
+                            {b.name}{b.city ? ` — ${b.city}` : ""}
+                          </option>
                         ))}
                       </select>
                     ) : f.type === "boolean" ? (
                       <label className="flex items-center gap-2">
-                        <input type="checkbox" checked={Boolean(form[f.key])}
-                          onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.checked }))} />
+                        <input
+                          type="checkbox"
+                          checked={Boolean(form[f.key])}
+                          onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.checked }))}
+                        />
                         <span className="text-sm">نعم</span>
                       </label>
                     ) : f.type === "textarea" ? (
-                      <Textarea required={f.required} value={form[f.key] ?? ""}
-                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))} />
+                      <Textarea
+                        required={f.required}
+                        value={form[f.key] ?? ""}
+                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      />
                     ) : f.type === "select" ? (
-                      <select required={f.required}
+                      <select
+                        required={f.required}
                         className="h-10 w-full rounded-md border border-input bg-background px-3"
                         value={form[f.key] ?? ""}
-                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}>
+                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      >
                         <option value="">اختر</option>
-                        {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                        {(f.options ?? []).map((o) => (
+                          <option key={o} value={o}>{o}</option>
+                        ))}
                       </select>
                     ) : (
-                      <Input required={f.required} type={f.type ?? "text"}
+                      <Input
+                        required={f.required}
+                        type={f.type ?? "text"}
+                        min={f.key === "followers" ? 0 : undefined}
+                        step={f.key === "followers" ? 1 : undefined}
                         dir={f.type === "url" || f.type === "email" ? "ltr" : undefined}
                         value={form[f.key] ?? ""}
-                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))} />
+                        onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      />
                     )}
                   </div>
                 ))}
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setEditing(undefined)}>إلغاء</Button>
+              <Button type="button" variant="outline" onClick={closeEditor}>
+                إلغاء
+              </Button>
               <Button type="submit" variant="gold" disabled={saving}>
                 {saving ? "جارٍ الحفظ…" : "حفظ"}
               </Button>
