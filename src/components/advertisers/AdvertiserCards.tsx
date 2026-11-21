@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { photoUrl } from "@/lib/photos";
 import {
   formatFollowers,
   formatPrice,
@@ -109,6 +110,8 @@ function AdvertiserCard({
   onToggle?: (() => void) | undefined;
 }) {
   const initial = group.name.trim().charAt(0).toUpperCase() || "؟";
+  const photoPath = group.accounts.map((a) => a["photo_path"] as string | null | undefined).find(Boolean) ?? null;
+  const [photoFailed, setPhotoFailed] = useState(false);
   const showRawToo = group.priceTexts.length > 0 &&
     (group.price_attendance !== null || group.price_home !== null);
 
@@ -128,9 +131,22 @@ function AdvertiserCard({
       )}
 
       <div className="flex items-start gap-3">
-        <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-gold-soft text-2xl font-extrabold text-secondary-foreground">
-          {initial}
-        </div>
+        {photoPath && !photoFailed ? (
+          <img
+            src={photoUrl(photoPath)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            width={64}
+            height={64}
+            onError={() => setPhotoFailed(true)}
+            className="size-16 shrink-0 rounded-full border border-border object-cover"
+          />
+        ) : (
+          <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-gold-soft text-2xl font-extrabold text-secondary-foreground">
+            {initial}
+          </div>
+        )}
 
         <div className={`min-w-0 flex-1 space-y-1 ${onToggle && !onEdit ? "pe-8" : ""}`}>
           <h3 className="flex items-center gap-1.5 font-extrabold" title={group.name}>
