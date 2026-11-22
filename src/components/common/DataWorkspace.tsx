@@ -1,4 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useSearch } from "@tanstack/react-router";
 import { Plus, Search, Pencil, Trash2, RotateCcw, Download, RefreshCw, LayoutGrid, Rows3 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { parseFollowersInput } from "@/lib/followers";
+import { matchesTokens, queryTokens } from "@/lib/search";
 
 type Field = {
   key: string;
@@ -33,6 +35,7 @@ type Props = {
   columns: Column[];
   permission?: string;
   editPermission?: string;
+  exportPermission?: string;
   softDelete?: boolean;
   filters?: string[];
   empty?: string;
@@ -80,6 +83,7 @@ export function DataWorkspace({
   columns,
   permission,
   editPermission,
+  exportPermission,
   softDelete = false,
   filters = [],
   empty = "لا توجد بيانات حتى الآن",
@@ -113,6 +117,11 @@ export function DataWorkspace({
   const [regions, setRegions] = useState<{ slug: string; name_ar: string }[]>([]);
   const [cities, setCities] = useState<{ region_slug: string; name_ar: string }[]>([]);
   const deferredQuery = useDeferredValue(query);
+  const urlSearch = useSearch({ strict: false }) as { q?: string | number };
+  const urlQ = urlSearch.q !== undefined ? String(urlSearch.q) : undefined;
+  useEffect(() => {
+    if (urlQ !== undefined) setQuery(urlQ);
+  }, [urlQ]);
   const filtersKey = filters.join("|");
   const followersNeeded =
     table === "advertisers" && (!editingMode || !editing?.platform || /^tiktok/i.test(String(editing.platform).trim()));
@@ -166,23 +175,34 @@ export function DataWorkspace({
     });
   }, [table, fields]);
 
-  const visible = useMemo(() => rows.filter((row) => {
-    const text = [
-      row.full_name,
-      row.name,
-      row.email,
-      row.username,
-      row.city,
-      row.region_slug,
-      row.platform,
-      row.status,
-    ].filter(Boolean).join(" ").toLowerCase();
+  const visible = useMemo(() => {
+    const tokens = queryTokens(deferredQuery);
+    return rows.filter((row) => {
+      const regionName = regions.find((r) => r.slug === row.region_slug)?.name_ar;
+      const haystack = [
+        row.full_name,
+        row.name,
+        row.email,
+        row.username,
+        row.city,
+        row.neighborhood,
+        row.category,
+        regionName,
+        row.region_slug,
+        row.platform,
+        row.status,
+        row.profile_url,
+        row.tiktok_url,
+      ]
+        .filter(Boolean)
+        .join(" ");
 
-    const matches = !deferredQuery || text.includes(deferredQuery.toLowerCase());
-    const matchesFilter = filter === "الكل" || filters.some((k) => String(row[k] ?? "") === filter);
+      const matches = matchesTokens(haystack, tokens);
+      const matchesFilter = filter === "الكل" || filters.some((k) => String(row[k] ?? "") === filter);
 
-    return matches && matchesFilter;
-  }), [rows, deferredQuery, filter, filtersKey]);
+      return matches && matchesFilter;
+    });
+  }, [rows, deferredQuery, filter, filtersKey, regions]);
 
   function closeEditor() {
     setEditing(undefined);
@@ -515,13 +535,17 @@ export function DataWorkspace({
               </div>
             )}
 
-            <Button type="button" variant="outline" onClick={exportCsv}>
-              <Download className="ms-2 size-4" />تصدير CSV
-            </Button>
+            {(exportPermission ? can(exportPermission) : canModify) && (
+              <Button type="button" variant="outline" onClick={exportCsv}>
+                <Download className="ms-2 size-4" />تصدير CSV
+              </Button>
+            )}
 
-            <Button type="button" variant="outline" onClick={() => void load()}>
-              <RefreshCw className="ms-2 size-4" />تحديث
-            </Button>
+            {canModify && (
+              <Button type="button" variant="outline" onClick={() => void load()}>
+                <RefreshCw className="ms-2 size-4" />تحديث
+              </Button>
+            )}
 
             {canModify && canCreate && (
               <Button type="button" variant="gold" onClick={() => void open()}>
