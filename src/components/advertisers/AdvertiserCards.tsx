@@ -116,7 +116,7 @@ function AdvertiserCard({
     (group.price_attendance !== null || group.price_home !== null);
 
   return (
-    <article className={`relative flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft transition [contain-intrinsic-size:auto_280px] [content-visibility:auto] hover:-translate-y-0.5 hover:border-primary ${
+    <article className={`relative flex min-w-0 flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft transition hover:-translate-y-0.5 hover:border-primary ${
       selected ? "border-primary ring-2 ring-primary" : "border-border"
     }`}>
       {onToggle && (
@@ -219,7 +219,7 @@ function AdvertiserCard({
         <div className="space-y-1 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
           <b className="text-foreground">ملاحظات</b>
           {group.notes.map((n) => (
-            <p key={n} className="whitespace-pre-line">{n}</p>
+            <p key={n} className="whitespace-pre-line [overflow-wrap:anywhere]">{n}</p>
           ))}
         </div>
       )}
@@ -460,7 +460,7 @@ export function AdvertiserCards({ rows, onEdit, onDelete, limit, selectable = tr
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {groups.map((g) => (
           <AdvertiserCard
             key={g.key}
