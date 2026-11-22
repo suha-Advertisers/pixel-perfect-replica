@@ -49,7 +49,7 @@ export type AdvertiserGroup = {
 
 /** أعمدة الجدول المطلوبة لعرض البطاقات (تُستخدم في كل الصفحات). */
 export const ADVERTISER_CARD_COLUMNS =
-  "id,full_name,username,region_slug,city,category,platform,followers,profile_url,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,price_attendance,price_home,price_hospitality,price_free,price_text,notes,is_verified,created_at";
+  "id,full_name,username,region_slug,city,category,platform,followers,profile_url,instagram_url,snapchat_url,tiktok_url,youtube_url,x_url,price_attendance,price_home,price_hospitality,price_free,price_text,notes,is_verified,photo_path,created_at";
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 const PLATFORM_ORDER = ["TikTok", "Instagram", "Snapchat", "YouTube", "X"];
